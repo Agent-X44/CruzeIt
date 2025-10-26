@@ -182,7 +182,7 @@ const Hero = () => {
             animate={{ rotate: -720 }}
             transition={{
               duration: 3.5,
-              ease: "linear"
+              ease: [0.22, 1, 0.36, 1]
             }}
           />
           
@@ -200,7 +200,7 @@ const Hero = () => {
             animate={{ rotate: -720 }}
             transition={{
               duration: 3.5,
-              ease: "linear"
+              ease: [0.22, 1, 0.36, 1]
             }}
           />
         </div>
