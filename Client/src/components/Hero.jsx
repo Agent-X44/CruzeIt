@@ -31,8 +31,8 @@ const Hero = () => {
   const { scrollY } = useScroll()
   const carX = useTransform(scrollY, [0, 800], ['0%', '-150%'])
   
-  // Wheel rotation: continues from -720 (where initial animation ends) and rotates further on scroll
-  const wheelRotation = useTransform(scrollY, [0, 800], [-720, -2160])
+  // Wheel rotation: starts from 0 and rotates as you scroll
+  const wheelRotation = useTransform(scrollY, [0, 800], [0, -1440])
 
   const handleSearch = (e) => {
     e.preventDefault()
