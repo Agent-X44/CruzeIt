@@ -45,7 +45,7 @@ const Hero = () => {
 
   return (
     <motion.div 
-      className="min-h-[150vh] flex flex-col items-center bg-borderColor text-center pt-10 pb-20 md:pt-16 md:pb-32 lg:pb-40 relative overflow-hidden"
+      className="min-h-screen flex flex-col items-center bg-borderColor text-center pt-10 pb-20 md:pt-16 md:pb-32 lg:pb-40 relative overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.8 }}
