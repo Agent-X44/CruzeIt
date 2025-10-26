@@ -176,10 +176,10 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '70%',
-              rotate: wheelRotation
+              rotate: animationComplete ? wheelRotation : undefined
             }}
             initial={{ rotate: 0 }}
-            animate={{ rotate: -720 }}
+            animate={animationComplete ? {} : { rotate: -720 }}
             transition={{
               duration: 3.5,
               ease: [0.22, 1, 0.36, 1]
@@ -194,10 +194,10 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '14%',
-              rotate: wheelRotation
+              rotate: animationComplete ? wheelRotation : undefined
             }}
             initial={{ rotate: 0 }}
-            animate={{ rotate: -720 }}
+            animate={animationComplete ? {} : { rotate: -720 }}
             transition={{
               duration: 3.5,
               ease: [0.22, 1, 0.36, 1]
