@@ -44,6 +44,22 @@ const Hero = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [scrollY])
 
+  // Lock scroll during initial animation
+  useEffect(() => {
+    if (!initialAnimDone) {
+      // Prevent scrolling
+      document.body.style.overflow = 'hidden'
+    } else {
+      // Re-enable scrolling
+      document.body.style.overflow = 'auto'
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = 'auto'
+    }
+  }, [initialAnimDone])
+
   const handleSearch = (e) => {
     e.preventDefault()
     if (!pickupLocation) {
