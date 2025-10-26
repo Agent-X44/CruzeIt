@@ -167,7 +167,7 @@ const Hero = () => {
         initial={{ x: '100vw' }}
         animate={{ x: '0%' }}
         transition={{
-          duration: 5,
+          duration: 3.5,
           ease: [0.22, 1, 0.36, 1]
         }}
       >
@@ -192,7 +192,7 @@ const Hero = () => {
               initial={{ rotate: 0 }}
               animate={{ rotate: -720 }}
               transition={{
-                duration: 5,
+                duration: 3.5,
                 ease: [0.22, 1, 0.36, 1]
               }}
               onAnimationComplete={() => setInitialAnimDone(true)}
@@ -223,7 +223,7 @@ const Hero = () => {
               initial={{ rotate: 0 }}
               animate={{ rotate: -720 }}
               transition={{
-                duration: 5,
+                duration: 3.5,
                 ease: [0.22, 1, 0.36, 1]
               }}
             />
