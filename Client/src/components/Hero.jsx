@@ -34,6 +34,16 @@ const Hero = () => {
   // Wheel rotation: starts from 0 and rotates as you scroll
   const wheelRotation = useTransform(scrollY, [0, 800], [0, -1440])
 
+  // Force re-render on scroll to fix mouse wheel issue
+  useEffect(() => {
+    const handleScroll = () => {
+      // This forces the component to respond to scroll events
+      scrollY.set(window.scrollY)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [scrollY])
+
   const handleSearch = (e) => {
     e.preventDefault()
     if (!pickupLocation) {
