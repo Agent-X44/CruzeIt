@@ -37,7 +37,7 @@ const Hero = () => {
   // Force re-render on scroll to fix mouse wheel issue
   useEffect(() => {
     const handleScroll = () => {
-      // This forces the component to respond to scroll events
+  // This forces the component to respond to scroll events
       scrollY.set(window.scrollY)
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
