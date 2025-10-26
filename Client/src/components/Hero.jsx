@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { assets, cityList } from '../assets/assets'
 import { useAppContext } from '../context/AppContext'
-import { motion, useScroll, useTransform } from 'motion/react'
+import { motion, useScroll, useTransform, useMotionValue } from 'motion/react'
 
 const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
@@ -31,18 +31,19 @@ const Hero = () => {
   const { scrollY } = useScroll()
   const carX = useTransform(scrollY, [0, 800], ['0%', '-150%'])
   
-  // Wheel rotation: starts from 0 and rotates as you scroll
-  const wheelRotation = useTransform(scrollY, [0, 800], [0, -1440])
+  // Create a motion value for wheel rotation that we can manually update
+  const scrollProgress = useMotionValue(0)
+  const wheelRotation = useTransform(scrollProgress, [0, 800], [0, -1440])
 
-  // Force re-render on scroll to fix mouse wheel issue
+  // Track scroll events and update motion value
   useEffect(() => {
     const handleScroll = () => {
-  // This forces the component to respond to scroll events
-      scrollY.set(window.scrollY)
+      scrollProgress.set(window.scrollY)
     }
+    handleScroll() // Set initial value
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
-  }, [scrollY])
+  }, [scrollProgress])
 
   const handleSearch = (e) => {
     e.preventDefault()
