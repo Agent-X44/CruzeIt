@@ -15,6 +15,7 @@ const Navbar = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const navigate = useNavigate()
 
   const changeRole = async () => {
@@ -31,7 +32,6 @@ const Navbar = () => {
     }
   }
 
-  // Handle delete account
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== 'DELETE') {
       toast.error('Please type DELETE to confirm')
@@ -51,13 +51,42 @@ const Navbar = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete account')
+      console.error('Delete account error:', error)
+      
+      if (error.response) {
+        const status = error.response.status
+        const message = error.response.data?.message
+        
+        switch (status) {
+          case 400:
+            toast.error(message || 'Cannot delete account with active bookings')
+            break
+          case 401:
+            toast.error('Session expired. Please log in again')
+            logout()
+            navigate('/login')
+            break
+          case 404:
+            toast.error('User not found')
+            logout()
+            break
+          case 500:
+            toast.error('Server error. Please try again later')
+            break
+          default:
+            toast.error(message || 'Failed to delete account')
+        }
+      } else if (error.request) {
+        toast.error('Network error. Please check your connection')
+      } else {
+        toast.error('An unexpected error occurred')
+      }
     } finally {
       setIsDeleting(false)
+      setDeleteConfirmText('')
     }
   }
 
-  // Handle search
   const handleSearch = (e) => {
     e.preventDefault()
     if (searchQuery.trim()) {
@@ -68,11 +97,31 @@ const Navbar = () => {
     }
   }
 
-  // Handle search input key press
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch(e)
     }
+  }
+
+  // Check if user has a valid image
+  const hasValidImage = () => {
+    if (!user?.image) return false
+    const image = user.image.trim()
+    if (image === '' || image === ' ' || image === 'null' || image === 'undefined') return false
+    try {
+      if (image.startsWith('http://') || image.startsWith('https://')) {
+        return true
+      }
+    } catch (e) {
+      return false
+    }
+    return false
+  }
+
+  const handleImageError = (e) => {
+    console.error('Failed to load profile image:', user?.image)
+    console.error('Auth provider:', user?.authProvider)
+    setImageError(true)
   }
 
   // Close dropdown when clicking outside
@@ -91,6 +140,11 @@ const Navbar = () => {
   useEffect(() => {
     setOpen(false)
   }, [location.pathname])
+
+  // Reset image error when user changes
+  useEffect(() => {
+    setImageError(false)
+  }, [user?.image])
 
   return (
     <>
@@ -147,15 +201,31 @@ const Navbar = () => {
           </form>
 
           <div className='flex max-sm:flex-col items-start sm:items-center gap-6 max-sm:w-full'>
-            <button 
-              onClick={() => {
-                isOwner ? navigate('/owner') : changeRole()
-                setOpen(false)
-              }}
-              className="cursor-pointer hover:text-primary transition-colors"
-            >
-              {isOwner ? 'Dashboard' : 'List cars'}
-            </button>
+            {/* Show "List cars" button only for non-moderators */}
+            {user?.role !== 'moderator' && (
+              <button 
+                onClick={() => {
+                  isOwner ? navigate('/owner') : changeRole()
+                  setOpen(false)
+                }}
+                className="cursor-pointer hover:text-primary transition-colors"
+              >
+                {isOwner ? 'Dashboard' : 'List cars'}
+              </button>
+            )}
+
+            {/* Show "Moderator Dashboard" button only for moderators */}
+            {user?.role === 'moderator' && (
+              <button 
+                onClick={() => {
+                  navigate('/moderator')
+                  setOpen(false)
+                }}
+                className="cursor-pointer hover:text-primary transition-colors font-medium"
+              >
+                Moderator Dashboard
+              </button>
+            )}
 
             {user ? (
               <div className="relative profile-dropdown max-sm:w-full">
@@ -165,24 +235,20 @@ const Navbar = () => {
                   onClick={() => setShowDropdown(!showDropdown)}
                   className="flex items-center gap-2 cursor-pointer max-sm:w-full"
                 >
-                  {user.image && user.image !== ' ' ? (
+                  {hasValidImage() && !imageError ? (
                     <img 
                       src={user.image} 
                       alt={user.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-primary shadow-md"
-                      onError={(e) => {
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'flex'
-                      }}
+                      onError={handleImageError}
+                      crossOrigin="anonymous"
+                      referrerPolicy="no-referrer"
                     />
-                  ) : null}
-                  
-                  {/* Fallback Avatar with Initials */}
-                  <div 
-                    className={`w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm border-2 border-primary shadow-md ${user.image && user.image !== ' ' ? 'hidden' : 'flex'}`}
-                  >
-                    {user.name?.charAt(0).toUpperCase()}
-                  </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-sm border-2 border-primary shadow-md">
+                      {user.name?.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                   
                   {/* Dropdown Arrow */}
                   <svg 
@@ -208,11 +274,14 @@ const Navbar = () => {
                       {/* User Info */}
                       <div className="px-4 py-3 border-b border-gray-200">
                         <div className="flex items-center gap-3">
-                          {user.image && user.image !== ' ' ? (
+                          {hasValidImage() && !imageError ? (
                             <img 
                               src={user.image} 
                               alt={user.name}
                               className="w-12 h-12 rounded-full object-cover border-2 border-primary"
+                              onError={handleImageError}
+                              crossOrigin="anonymous"
+                              referrerPolicy="no-referrer"
                             />
                           ) : (
                             <div className="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-semibold text-lg border-2 border-primary">
