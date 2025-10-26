@@ -170,41 +170,65 @@ const Hero = () => {
           />
           
           {/* Front Wheel */}
-          <motion.img
-            src={assets.main_car_wheel}
-            alt="front wheel"
-            className="absolute w-[15%] h-auto object-contain"
-            style={{ 
-              bottom: '1%',
-              left: '70%',
-              rotate: initialAnimDone ? wheelRotation : undefined
-            }}
-            initial={{ rotate: 0 }}
-            animate={{ rotate: initialAnimDone ? undefined : -720 }}
-            transition={{
-              duration: 5,
-              ease: [0.22, 1, 0.36, 1]
-            }}
-            onAnimationComplete={() => setInitialAnimDone(true)}
-          />
+          {!initialAnimDone ? (
+            <motion.img
+              src={assets.main_car_wheel}
+              alt="front wheel"
+              className="absolute w-[15%] h-auto object-contain"
+              style={{ 
+                bottom: '1%',
+                left: '70%'
+              }}
+              initial={{ rotate: 0 }}
+              animate={{ rotate: -720 }}
+              transition={{
+                duration: 5,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+              onAnimationComplete={() => setInitialAnimDone(true)}
+            />
+          ) : (
+            <motion.img
+              src={assets.main_car_wheel}
+              alt="front wheel"
+              className="absolute w-[15%] h-auto object-contain"
+              style={{ 
+                bottom: '1%',
+                left: '70%',
+                rotate: wheelRotation
+              }}
+            />
+          )}
           
           {/* Rear Wheel */}
-          <motion.img
-            src={assets.main_car_wheel}
-            alt="rear wheel"
-            className="absolute w-[15%] h-auto object-contain"
-            style={{ 
-              bottom: '1%',
-              left: '14%',
-              rotate: initialAnimDone ? wheelRotation : undefined
-            }}
-            initial={{ rotate: 0 }}
-            animate={{ rotate: initialAnimDone ? undefined : -720 }}
-            transition={{
-              duration: 5,
-              ease: [0.22, 1, 0.36, 1]
-            }}
-          />
+          {!initialAnimDone ? (
+            <motion.img
+              src={assets.main_car_wheel}
+              alt="rear wheel"
+              className="absolute w-[15%] h-auto object-contain"
+              style={{ 
+                bottom: '1%',
+                left: '14%'
+              }}
+              initial={{ rotate: 0 }}
+              animate={{ rotate: -720 }}
+              transition={{
+                duration: 5,
+                ease: [0.22, 1, 0.36, 1]
+              }}
+            />
+          ) : (
+            <motion.img
+              src={assets.main_car_wheel}
+              alt="rear wheel"
+              className="absolute w-[15%] h-auto object-contain"
+              style={{ 
+                bottom: '1%',
+                left: '14%',
+                rotate: wheelRotation
+              }}
+            />
+          )}
         </div>
       </motion.div>
     </motion.div>
