@@ -7,6 +7,7 @@ const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [initialAnimDone, setInitialAnimDone] = useState(false)
   const dropdownRef = useRef(null)
   const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate } = useAppContext()
   
@@ -30,8 +31,8 @@ const Hero = () => {
   const { scrollY } = useScroll()
   const carX = useTransform(scrollY, [0, 800], ['0%', '-150%'])
   
-  // Wheel rotation based on scroll - smoother rotation
-  const wheelRotation = useTransform(scrollY, [0, 800], [0, -1440])
+  // Wheel rotation: continues from -720 (where initial animation ends) and rotates further on scroll
+  const wheelRotation = useTransform(scrollY, [0, 800], [-720, -2160])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -176,14 +177,15 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '70%',
-              rotate: wheelRotation
+              rotate: initialAnimDone ? wheelRotation : undefined
             }}
             initial={{ rotate: 0 }}
-            animate={{ rotate: -720 }}
+            animate={{ rotate: initialAnimDone ? undefined : -720 }}
             transition={{
-              duration: 3.5,
-              ease: "linear"
+              duration: 5,
+              ease: [0.22, 1, 0.36, 1]
             }}
+            onAnimationComplete={() => setInitialAnimDone(true)}
           />
           
           {/* Rear Wheel */}
@@ -194,13 +196,13 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '14%',
-              rotate: wheelRotation
+              rotate: initialAnimDone ? wheelRotation : undefined
             }}
             initial={{ rotate: 0 }}
-            animate={{ rotate: -720 }}
+            animate={{ rotate: initialAnimDone ? undefined : -720 }}
             transition={{
-              duration: 3.5,
-              ease: "linear"
+              duration: 5,
+              ease: [0.22, 1, 0.36, 1]
             }}
           />
         </div>
