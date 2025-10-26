@@ -7,7 +7,6 @@ const Hero = () => {
   const [pickupLocation, setPickupLocation] = useState('')
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [animationComplete, setAnimationComplete] = useState(false)
   const dropdownRef = useRef(null)
   const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate } = useAppContext()
   
@@ -32,7 +31,7 @@ const Hero = () => {
   const carX = useTransform(scrollY, [0, 800], ['0%', '-150%'])
   
   // Wheel rotation based on scroll - smoother rotation
-  const wheelRotation = useTransform(scrollY, [0, 800], [-720, -2160])
+  const wheelRotation = useTransform(scrollY, [0, 800], [0, -1440])
 
   const handleSearch = (e) => {
     e.preventDefault()
@@ -160,7 +159,6 @@ const Hero = () => {
           duration: 5,
           ease: [0.22, 1, 0.36, 1]
         }}
-        onAnimationComplete={() => setAnimationComplete(true)}
       >
         <div className="relative w-full max-w-[400px] sm:max-w-[500px] md:max-w-[700px] lg:max-w-[800px] mx-auto px-4 sm:px-6">
           {/* Main car body */}
@@ -178,13 +176,13 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '70%',
-              rotate: animationComplete ? wheelRotation : undefined
+              rotate: wheelRotation
             }}
             initial={{ rotate: 0 }}
-            animate={animationComplete ? {} : { rotate: -720 }}
+            animate={{ rotate: -720 }}
             transition={{
               duration: 3.5,
-              ease: [0.22, 1, 0.36, 1]
+              ease: "linear"
             }}
           />
           
@@ -196,13 +194,13 @@ const Hero = () => {
             style={{ 
               bottom: '1%',
               left: '14%',
-              rotate: animationComplete ? wheelRotation : undefined
+              rotate: wheelRotation
             }}
             initial={{ rotate: 0 }}
-            animate={animationComplete ? {} : { rotate: -720 }}
+            animate={{ rotate: -720 }}
             transition={{
               duration: 3.5,
-              ease: [0.22, 1, 0.36, 1]
+              ease: "linear"
             }}
           />
         </div>
