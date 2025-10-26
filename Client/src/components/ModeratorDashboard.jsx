@@ -16,54 +16,42 @@ const ModeratorDashboard = () => {
 
   // Check if user is moderator
   useEffect(() => {
-    console.log('🔍 Checking auth...')
-    console.log('Token:', localStorage.getItem('token'))
-    console.log('User:', user)
-    console.log('User role:', user?.role)
-
-    // Check if token exists
     const token = localStorage.getItem('token')
     if (!token) {
-      console.log('❌ No token found')
       navigate('/')
       toast.error('Please log in to access this page')
       return
     }
 
-    // Wait for user to load (user will be null initially, then loaded)
     if (user === null) {
-      console.log('⏳ Waiting for user to load...')
       setCheckingAuth(true)
       return
     }
 
-    // User is loaded, check role
     setCheckingAuth(false)
 
     if (user.role !== 'moderator') {
-      console.log('❌ Access denied. User role:', user.role)
       navigate('/')
       toast.error('Access denied. Moderators only.')
       return
     }
 
-    console.log('✅ Moderator access granted')
     fetchData()
   }, [user, navigate])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      if (activeTab === 'testimonials') {
-        const { data } = await axios.get('/api/moderator/testimonials')
-        if (data.success) {
-          setTestimonials(data.testimonials)
-        }
-      } else if (activeTab === 'cars') {
-        const { data } = await axios.get('/api/moderator/cars')
-        if (data.success) {
-          setCars(data.cars)
-        }
+      const endpoint = activeTab === 'testimonials' 
+        ? '/api/moderator/testimonials' 
+        : '/api/moderator/cars'
+      
+      const { data } = await axios.get(endpoint)
+      
+      if (data.success) {
+        activeTab === 'testimonials' 
+          ? setTestimonials(data.testimonials) 
+          : setCars(data.cars)
       }
     } catch (error) {
       console.error('Error fetching data:', error)
@@ -124,7 +112,6 @@ const ModeratorDashboard = () => {
     </svg>
   )
 
-  // Show loading spinner while checking authentication
   if (checkingAuth) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
@@ -143,11 +130,27 @@ const ModeratorDashboard = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Moderator Dashboard</h1>
-              <p className="text-gray-600 mt-2">Manage and moderate platform content</p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/')}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                title="Back to Home"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="text-gray-700 font-medium">Home</span>
+              </motion.button>
+              
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">Moderator Dashboard</h1>
+                <p className="text-gray-600 mt-2">Manage and moderate platform content</p>
+              </div>
             </div>
+
             <div className="flex items-center gap-2 bg-blue-100 text-blue-800 px-4 py-2 rounded-lg">
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
