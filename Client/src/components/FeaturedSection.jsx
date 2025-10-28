@@ -87,15 +87,15 @@ const FeaturedSection = () => {
             <button
               key={index}
               onClick={() => setCurrentIndex(index * 3)}
-              className={`w-2 h-2 rounded-full transition-all ${
+              className={`w-2 h-2 rounded-full ${
                 Math.floor(currentIndex / 3) === index 
-                  ? 'bg-primaryColor w-8' 
+                  ? 'bg-[#3a5a40] w-8' 
                   : 'bg-gray-300'
-              }`}
-            />
-          ))}
-        </div>
-      )}
+               }`}
+              />
+            ))}
+          </div>
+        )}
 
       {/* Explore Button */}
       <motion.button
