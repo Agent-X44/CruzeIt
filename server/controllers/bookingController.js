@@ -207,6 +207,14 @@ export const cancelBooking = async (req, res) => {
             return res.json({ success: false, message: 'You are not authorized to cancel this booking' });
         }
 
+        // NEW: Prevent cancellation of confirmed bookings by users
+        if (booking.status === 'Confirmed') {
+            return res.json({ 
+                success: false, 
+                message: 'Cannot cancel confirmed booking. Please contact the car owner to request cancellation.' 
+            });
+        }
+
         // Check if booking can be cancelled (not already completed or cancelled)
         if (booking.status === 'Completed' || booking.status === 'Cancelled') {
             return res.json({ success: false, message: `Booking already ${booking.status}` });
@@ -249,6 +257,14 @@ export const deleteBooking = async (req, res) => {
             return res.json({ success: false, message: 'You are not authorized to delete this booking' });
         }
 
+        // NEW: Prevent deletion of confirmed bookings by users
+        if (booking.status === 'Confirmed') {
+            return res.json({ 
+                success: false, 
+                message: 'Cannot delete confirmed booking. Please contact the car owner to request cancellation.' 
+            });
+        }
+
         // Auto-cancel if not already cancelled or completed
         if (booking.status !== 'Cancelled' && booking.status !== 'Completed') {
             booking.status = 'Cancelled';
@@ -259,6 +275,39 @@ export const deleteBooking = async (req, res) => {
         await Booking.findByIdAndDelete(bookingId);
 
         res.json({ success: true, message: 'Booking deleted successfully' });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
+
+// NEW: api to cancel confirmed booking by owner
+export const cancelConfirmedBooking = async (req, res) => {
+    try {
+        const { _id } = req.user;
+        const { bookingId } = req.body;
+
+        const booking = await Booking.findById(bookingId);
+
+        if (!booking) {
+            return res.json({ success: false, message: 'Booking not found' });
+        }
+
+        // Check if the user is the car owner
+        if (booking.owner.toString() !== _id.toString()) {
+            return res.json({ success: false, message: 'Only the car owner can cancel confirmed bookings' });
+        }
+
+        // Check if booking is confirmed
+        if (booking.status !== 'Confirmed') {
+            return res.json({ success: false, message: 'Only confirmed bookings can be cancelled by owner' });
+        }
+
+        // Cancel the booking
+        booking.status = 'Cancelled';
+        await booking.save();
+
+        res.json({ success: true, message: 'Confirmed booking cancelled successfully' });
     } catch (error) {
         console.log(error.message);
         res.json({ success: false, message: error.message });
