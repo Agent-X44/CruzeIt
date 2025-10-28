@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { assets } from '../assets/assets'
@@ -15,55 +15,77 @@ const MyBookings = () => {
   const [showModal, setShowModal] = useState(false)
   const [selectedBooking, setSelectedBooking] = useState(null)
   const [actionType, setActionType] = useState('cancel') // 'cancel' or 'delete'
+  const hasShownToast = useRef(false) // Track if toast has been shown
+
+  // Check if user is logged in (only after initial load and once)
+  useEffect(() => {
+    if (!loading && !user && !hasShownToast.current) {
+      toast.error('Please log in or create an account to view your bookings', {
+        duration: 4000,
+        icon: '🔒'
+      })
+      hasShownToast.current = true
+    }
+  }, [user, loading])
 
   const fetchMyBookings = async () => {
     try {
-      setLoading(true)
       const { data } = await axios.get('/api/bookings/user')
-      console.log('Bookings response:', data)
       if (data.success) {
-        setBookings(data.bookings || [])
+        setBookings(data.bookings)
       } else {
         toast.error(data.message)
-        setBookings([])
       }
     } catch (error) {
-      console.error('Error fetching bookings:', error)
       toast.error(error.message)
-      setBookings([])
     } finally {
       setLoading(false)
     }
   }
 
-  // Check if user is logged in and fetch bookings
   useEffect(() => {
-    if (!user) {
-      toast.error('Please log in or create an account to view your bookings', {
-        duration: 4000,
-        icon: '🔐'
-      })
-      setLoading(false)
-    } else {
+    if (user) {
       fetchMyBookings()
+    } else {
+      setLoading(false)
     }
   }, [user])
 
-  // Check if booking can be cancelled
+  // Check if booking can be cancelled by user
   const canCancelBooking = (booking) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const pickupDate = new Date(booking.pickupDate);
     
+    // Users can only cancel Pending bookings that haven't started yet
     return (
-      booking.status !== 'Cancelled' && 
-      booking.status !== 'Completed' && 
+      booking.status === 'Pending' && 
       pickupDate >= today
     );
   };
 
+  // Check if booking can be deleted by user
+  const canDeleteBooking = (booking) => {
+    // Users can delete any booking except Confirmed ones
+    return booking.status !== 'Confirmed';
+  };
+
   // Handle cancel button click
   const handleCancelClick = (booking) => {
+    // Check if booking is confirmed
+    if (booking.status === 'Confirmed') {
+      toast.error('Cannot cancel confirmed booking. Please contact the car owner to request cancellation.', {
+        duration: 5000,
+        icon: '❌',
+        style: {
+          background: '#FEE2E2',
+          color: '#DC2626',
+          border: '1px solid #FCA5A5'
+        }
+      });
+      return;
+    }
+
     setSelectedBooking(booking);
     setActionType('cancel');
     setShowModal(true);
@@ -71,6 +93,20 @@ const MyBookings = () => {
 
   // Handle delete button click
   const handleDeleteClick = (booking) => {
+    // Check if booking is confirmed
+    if (booking.status === 'Confirmed') {
+      toast.error('Cannot delete confirmed booking. Please contact the car owner to request cancellation.', {
+        duration: 5000,
+        icon: '❌',
+        style: {
+          background: '#FEE2E2',
+          color: '#DC2626',
+          border: '1px solid #FCA5A5'
+        }
+      });
+      return;
+    }
+
     setSelectedBooking(booking);
     setActionType('delete');
     setShowModal(true);
@@ -86,7 +122,10 @@ const MyBookings = () => {
       });
 
       if (data.success) {
-        toast.success(data.message);
+        toast.success(data.message, {
+          duration: 3000,
+          icon: '✅'
+        });
         
         if (actionType === 'delete') {
           // Remove booking from state
@@ -100,10 +139,22 @@ const MyBookings = () => {
           ));
         }
       } else {
-        toast.error(data.message);
+        // Show error toast with custom styling
+        toast.error(data.message, {
+          duration: 5000,
+          icon: '❌',
+          style: {
+            background: '#FEE2E2',
+            color: '#DC2626',
+            border: '1px solid #FCA5A5'
+          }
+        });
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message, {
+        duration: 4000,
+        icon: '❌'
+      });
     } finally {
       setShowModal(false);
       setSelectedBooking(null);
@@ -129,7 +180,7 @@ const MyBookings = () => {
   }
 
   // If user is not logged in, show login prompt
-  if (!user) {
+  if (!user && !loading) {
     return (
       <div className="px-6 md:px-16 lg:px-24 xl:px-32 2xl:px-48 mt-16 text-sm max-w-7xl mx-auto">
         <Title title="My Bookings" subTitle="View and manage all your car bookings" align="left" />
@@ -295,7 +346,6 @@ const MyBookings = () => {
             className="mt-10 space-y-6"
           >
             {bookings.map((booking, index) => (
-              booking.car ? (
               <motion.div
                 layout
                 key={booking._id}
@@ -373,9 +423,22 @@ const MyBookings = () => {
                     </div>
                   </div>
 
+                  {/* Confirmed Booking Notice */}
+                  {booking.status === 'Confirmed' && (
+                    <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-start gap-2">
+                      <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <div className="text-xs text-blue-800">
+                        <p className="font-semibold">Booking Confirmed</p>
+                        <p>Contact the car owner to request cancellation if needed.</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Action Buttons */}
                   <div className="flex gap-2 mt-4">
-                    {/* Cancel Button */}
+                    {/* Cancel Button - Only show for Pending bookings */}
                     {canCancelBooking(booking) && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
@@ -390,18 +453,32 @@ const MyBookings = () => {
                       </motion.button>
                     )}
 
-                    {/* Delete Button - Always show */}
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => handleDeleteClick(booking)}
-                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Delete
-                    </motion.button>
+                    {/* Delete Button - Show for all except Confirmed */}
+                    {canDeleteBooking(booking) ? (
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleDeleteClick(booking)}
+                        className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl hover:bg-red-100 transition-colors text-sm font-medium flex items-center gap-2"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Delete
+                      </motion.button>
+                    ) : (
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        onClick={() => handleDeleteClick(booking)}
+                        className="px-4 py-2 bg-gray-100 text-gray-400 border border-gray-200 rounded-xl cursor-not-allowed text-sm font-medium flex items-center gap-2"
+                        disabled
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Locked
+                      </motion.button>
+                    )}
                   </div>
                 </div>
 
@@ -409,17 +486,20 @@ const MyBookings = () => {
                 <div className="md:col-span-1 flex flex-col justify-between gap-6 text-right">
                   <div>
                     <p className="text-gray-500 text-sm">Total Price</p>
-                    <h1 className="text-2xl font-semibold text-primary">
+                    <motion.h1
+                      className="text-2xl font-semibold text-primary"
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ repeat: Infinity, duration: 3 }}
+                    >
                       {currency}
                       {booking.price}
-                    </h1>
+                    </motion.h1>
                     <p className="text-gray-400 text-xs mt-1">
                       Booked on {booking.createdAt.split('T')[0]}
                     </p>
                   </div>
                 </div>
               </motion.div>
-              ) : null
             ))}
           </motion.div>
         </AnimatePresence>
