@@ -424,7 +424,8 @@ const CarDetails = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
-                className="flex items-center justify-between text-2xl text-gray-800 font-semibold"
+                className="flex items-center justify-between text-2xl font-semibold"
+                style={{ color: '#3a5a40' }}
               >
                 {currency}{car.price_per_day}
                 <span className="text-base text-gray-400 font-normal">per day</span>
