@@ -10,7 +10,11 @@ const categorySeatingCapacity = {
   'MPV': 7,
   'SUV': 7,
   'Sedan': 5,
-  'Van': 12
+  'Van': 12,
+  'Hatchback': 5,
+  'Sports': 2,
+  'Luxury': 5,
+  'Electric': 5
 }
 
 const AddCar = () => {
@@ -288,6 +292,10 @@ const AddCar = () => {
                 <option value="SUV">SUV</option>
                 <option value="Sedan">Sedan</option>
                 <option value="Van">Van</option>
+                <option value="Hatchback">Hatchback</option>
+                <option value="Sports">Sports</option>
+                <option value="Luxury">Luxury</option>
+                <option value="Electric">Electric</option>
               </select>
               <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -345,8 +353,8 @@ const AddCar = () => {
               >
                 <option value="">Select</option>
                 <option value="Gas">Gas</option>
-                <option value="Diesel">Diesel</option>
                 <option value="Petrol">Petrol</option>
+                <option value="Diesel">Diesel</option>
                 <option value="Electric">Electric</option>
                 <option value="Hybrid">Hybrid</option>
               </select>
@@ -474,4 +482,4 @@ const AddCar = () => {
   )
 }
 
-export default AddCar
+export default AddCar;
