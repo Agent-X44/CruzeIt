@@ -62,8 +62,8 @@ const FeaturedSection = () => {
         />
       </motion.div>
 
-      {/* Car Cards Grid with Animation */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-16">
+      {/* Car Cards Grid with Animation - Centered */}
+      <div className="flex flex-wrap justify-center gap-8 mt-16 w-full">
         <AnimatePresence mode="wait">
           {carsToShow.map((car, index) => (
             <motion.div 
@@ -72,6 +72,7 @@ const FeaturedSection = () => {
               animate={{opacity: 1, scale:1, y:0}}
               exit={{opacity:0, scale:0.8, y:-20}}
               transition={{duration:0.5, delay: index * 0.1}}
+              className="w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.5rem)] max-w-sm"
             >
               <CarCards car={car} />
             </motion.div>
@@ -114,4 +115,4 @@ const FeaturedSection = () => {
   )
 }
 
-export default FeaturedSection
+export default FeaturedSection;
