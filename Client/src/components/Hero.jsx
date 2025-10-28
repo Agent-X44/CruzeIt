@@ -90,7 +90,7 @@ const Hero = () => {
         animate={{ scale: 1, y: 0, opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
         onSubmit={handleSearch} 
-        className="flex flex-col md:flex-row items-start md:items-center justify-between py-3 px-4 md:py-4 md:px-6 rounded-xl md:rounded-full w-[95%] max-w-[68rem] bg-white shadow-xl mx-4"
+        className="flex flex-col md:flex-row items-start md:items-center justify-between py-3 px-4 md:py-4 md:px-6 rounded-xl md:rounded-full w-[95%] max-w-[50rem] bg-white shadow-xl mx-4"
       >
          <div className="flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-4 lg:gap-6 w-full md:ml-6 md:flex-1">
           {/* Pickup Location */}
