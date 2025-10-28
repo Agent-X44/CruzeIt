@@ -18,6 +18,13 @@ const CarDetails = () => {
   const [isPhoneValid, setIsPhoneValid] = useState(false)
   const [phoneInputFocused, setPhoneInputFocused] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('')
+  const [formErrors, setFormErrors] = useState({
+    pickupDate: '',
+    returnDate: '',
+    contactNumber: '',
+    paymentMethod: ''
+  })
+  const [showErrors, setShowErrors] = useState(false)
   const currency = import.meta.env.VITE_CURRENCY
 
   // Handle phone input change with real-time validation
@@ -32,12 +39,16 @@ const CarDetails = () => {
       
       // Show error only if user has typed enough characters
       if (!isValid && value.replace(/\D/g, '').length >= 10) {
-        setPhoneError(getPhoneErrorMessage(value));
+        const error = getPhoneErrorMessage(value);
+        setPhoneError(error);
+        setFormErrors(prev => ({ ...prev, contactNumber: error }));
       } else {
         setPhoneError('');
+        setFormErrors(prev => ({ ...prev, contactNumber: '' }));
       }
     } else {
       setPhoneError('');
+      setFormErrors(prev => ({ ...prev, contactNumber: '' }));
       setIsPhoneValid(false);
     }
   };
@@ -47,31 +58,73 @@ const CarDetails = () => {
     setPhoneInputFocused(false);
     
     if (contactNumber && !isPhoneValid) {
-      setPhoneError(getPhoneErrorMessage(contactNumber));
+      const error = getPhoneErrorMessage(contactNumber);
+      setPhoneError(error);
+      setFormErrors(prev => ({ ...prev, contactNumber: error }));
     }
+  };
+
+  // Validate all form fields
+  const validateForm = () => {
+    const errors = {
+      pickupDate: '',
+      returnDate: '',
+      contactNumber: '',
+      paymentMethod: ''
+    };
+
+    let hasErrors = false;
+
+    // Validate pickup date
+    if (!pickupDate) {
+      errors.pickupDate = 'Pickup date is required';
+      hasErrors = true;
+    } else {
+      const today = new Date().toISOString().split('T')[0];
+      if (pickupDate < today) {
+        errors.pickupDate = 'Pickup date cannot be in the past';
+        hasErrors = true;
+      }
+    }
+
+    // Validate return date
+    if (!returnDate) {
+      errors.returnDate = 'Return date is required';
+      hasErrors = true;
+    } else if (pickupDate && returnDate <= pickupDate) {
+      errors.returnDate = 'Return date must be after pickup date';
+      hasErrors = true;
+    }
+
+    // Validate contact number
+    if (!contactNumber.trim()) {
+      errors.contactNumber = 'Contact number is required';
+      hasErrors = true;
+    } else if (!validatePhoneNumber(contactNumber)) {
+      errors.contactNumber = getPhoneErrorMessage(contactNumber);
+      hasErrors = true;
+    }
+
+    // Validate payment method
+    if (!paymentMethod) {
+      errors.paymentMethod = 'Please select a payment method';
+      hasErrors = true;
+    }
+
+    setFormErrors(errors);
+    setShowErrors(hasErrors);
+    return hasErrors;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     
-    // Validate contact number
-    if (!contactNumber.trim()) {
-      toast.error('Please enter your contact number')
-      setPhoneError('Phone number is required')
-      return
-    }
-
-    // Validate phone format
-    if (!validatePhoneNumber(contactNumber)) {
-      toast.error('Please enter a valid Philippine phone number')
-      setPhoneError(getPhoneErrorMessage(contactNumber))
-      return
-    }
-
-    // Validate payment method
-    if (!paymentMethod) {
-      toast.error('Please select a payment method')
-      return
+    // Validate form but don't prevent submission
+    const hasErrors = validateForm();
+    
+    if (hasErrors) {
+      toast.error('Please check the highlighted fields');
+      return;
     }
 
     try {
@@ -95,6 +148,13 @@ const CarDetails = () => {
       toast.error(error.message)
     }
   }
+
+  // Update form errors when fields change
+  useEffect(() => {
+    if (showErrors) {
+      validateForm();
+    }
+  }, [pickupDate, returnDate, contactNumber, paymentMethod]);
 
   useEffect(() => {
     setCar(cars.find((car) => car._id === id))
@@ -193,6 +253,22 @@ const CarDetails = () => {
       opacity: 1, 
       y: 0,
       transition: { duration: 0.4 }
+    }
+  }
+
+  const errorVariants = {
+    initial: { opacity: 0, y: -10, height: 0 },
+    animate: { 
+      opacity: 1, 
+      y: 0, 
+      height: 'auto',
+      transition: { duration: 0.3 }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -10, 
+      height: 0,
+      transition: { duration: 0.2 }
     }
   }
 
@@ -361,6 +437,7 @@ const CarDetails = () => {
                 className="border-borderColor my-6 origin-left" 
               />
 
+              {/* Pickup Date Field */}
               <motion.div 
                 variants={formFieldVariants}
                 initial="initial"
@@ -374,13 +451,33 @@ const CarDetails = () => {
                   value={pickupDate}
                   onChange={(e) => setPickupDate(e.target.value)}
                   type="date"
-                  className="border border-borderColor px-3 py-2 rounded-lg outline-none transition-all"
-                  required
+                  className={`border px-3 py-2 rounded-lg outline-none transition-all ${
+                    formErrors.pickupDate 
+                      ? 'border-red-500 bg-red-50 focus:ring-2 focus:ring-red-200' 
+                      : 'border-borderColor focus:ring-2 focus:ring-primary/20'
+                  }`}
                   id="pickup-date"
                   min={new Date().toISOString().split('T')[0]}
                 />
+                <AnimatePresence>
+                  {formErrors.pickupDate && (
+                    <motion.p
+                      variants={errorVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      className="text-red-500 text-xs flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {formErrors.pickupDate}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
+              {/* Return Date Field */}
               <motion.div 
                 variants={formFieldVariants}
                 initial="initial"
@@ -394,11 +491,30 @@ const CarDetails = () => {
                   value={returnDate} 
                   onChange={(e) => setReturnDate(e.target.value)}
                   type="date"
-                  className="border border-borderColor px-3 py-2 rounded-lg outline-none transition-all"
-                  required
+                  className={`border px-3 py-2 rounded-lg outline-none transition-all ${
+                    formErrors.returnDate 
+                      ? 'border-red-500 bg-red-50 focus:ring-2 focus:ring-red-200' 
+                      : 'border-borderColor focus:ring-2 focus:ring-primary/20'
+                  }`}
                   id="return-date"
                   min={pickupDate || new Date().toISOString().split('T')[0]}
                 />
+                <AnimatePresence>
+                  {formErrors.returnDate && (
+                    <motion.p
+                      variants={errorVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      className="text-red-500 text-xs flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {formErrors.returnDate}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
               </motion.div>
 
               {/* Enhanced Contact Number Field with Validation */}
@@ -425,13 +541,12 @@ const CarDetails = () => {
                     type="tel"
                     placeholder="09XX-XXX-XXXX or +639XX-XXX-XXXX"
                     className={`w-full border px-3 py-2 pr-10 rounded-lg outline-none transition-all ${
-                      phoneError && !phoneInputFocused
-                        ? 'border-red-500 focus:ring-2 focus:ring-red-200'
+                      formErrors.contactNumber && !phoneInputFocused
+                        ? 'border-red-500 bg-red-50 focus:ring-2 focus:ring-red-200'
                         : isPhoneValid
                         ? 'border-green-500 focus:ring-2 focus:ring-green-200'
                         : 'border-borderColor focus:ring-2 focus:ring-primary/20'
                     }`}
-                    required
                     id="contact-number"
                   />
                   
@@ -467,17 +582,18 @@ const CarDetails = () => {
                 
                 {/* Error Message */}
                 <AnimatePresence>
-                  {phoneError && !phoneInputFocused && (
+                  {formErrors.contactNumber && !phoneInputFocused && (
                     <motion.p
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
+                      variants={errorVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
                       className="text-red-500 text-xs flex items-center gap-1"
                     >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                       </svg>
-                      {phoneError}
+                      {formErrors.contactNumber}
                     </motion.p>
                   )}
                 </AnimatePresence>
@@ -486,12 +602,13 @@ const CarDetails = () => {
                 <AnimatePresence>
                   {isPhoneValid && (
                     <motion.p
-                      initial={{ opacity: 0, y: -5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
+                      variants={errorVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
                       className="text-green-600 text-xs flex items-center gap-1"
                     >
-                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                       </svg>
                       Valid phone number
@@ -529,7 +646,9 @@ const CarDetails = () => {
                       whileTap={{ scale: 0.97 }}
                       className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 transition-all ${
                         paymentMethod === method.value
-                          ? 'border-primary bg-primary/10 text-primary font-semibold'
+                          ? formErrors.paymentMethod
+                            ? 'border-red-500 bg-red-50 text-red-600 font-semibold'
+                            : 'border-primary bg-primary/10 text-primary font-semibold'
                           : 'border-borderColor hover:border-primary/50 text-gray-600'
                       }`}
                     >
@@ -538,7 +657,23 @@ const CarDetails = () => {
                     </motion.button>
                   ))}
                 </div>
-                {!paymentMethod && (
+                <AnimatePresence>
+                  {formErrors.paymentMethod && (
+                    <motion.p
+                      variants={errorVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit="exit"
+                      className="text-red-500 text-xs flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {formErrors.paymentMethod}
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+                {!paymentMethod && !formErrors.paymentMethod && (
                   <p className="text-xs text-gray-400">
                     Select your preferred payment method
                   </p>
@@ -554,8 +689,8 @@ const CarDetails = () => {
                   boxShadow: '0 10px 30px rgba(59, 130, 246, 0.3)'
                 }}
                 whileTap={{ scale: 0.98 }}
-                className="w-full bg-primary hover:bg-primary-dull transition-all py-3 font-medium text-white rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={!isPhoneValid || !paymentMethod}
+                className="w-full bg-primary hover:bg-primary-dull transition-all py-3 font-medium text-white rounded-xl cursor-pointer"
+                type="submit"
               >
                 Book Now
               </motion.button>
@@ -578,4 +713,4 @@ const CarDetails = () => {
   )
 }
 
-export default CarDetails
+export default CarDetails;
