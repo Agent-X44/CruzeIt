@@ -97,7 +97,7 @@ const Dashboard = () => {
             whileHover={{
               scale: 1.05,
               boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-              borderColor: '#3b82f6',
+              borderColor: '#3a5a40',
             }}
             className="flex gap-2 items-center justify-between p-5 rounded-2xl border border-borderColor bg-white shadow-sm transition-all duration-200"
           >
