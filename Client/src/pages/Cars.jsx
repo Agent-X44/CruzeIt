@@ -362,27 +362,29 @@ const Cars = () => {
             <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
               {input && (
-                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full'>
+                <span className='px-3 py-1 rounded-full' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
                   "{input}"
                 </span>
               )}
               {selectedCategories.map(category => (
-                <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
+                <span key={category} className='px-3 py-1 rounded-full flex items-center gap-1' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
                   {category}
                   <button
                     onClick={() => toggleCategory(category)}
-                    className='hover:text-blue-800'
+                    className='hover:opacity-70 transition-opacity'
+                    style={{ color: '#3a5a40' }}
                   >
                     ×
                   </button>
                 </span>
               ))}
               {selectedFuelTypes.map(fuelType => (
-                <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
+                <span key={fuelType} className='px-3 py-1 rounded-full flex items-center gap-1' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
                   {fuelType}
                   <button
                     onClick={() => toggleFuelType(fuelType)}
-                    className='hover:text-green-800'
+                    className='hover:opacity-70 transition-opacity'
+                    style={{ color: '#3a5a40' }}
                   >
                     ×
                   </button>
