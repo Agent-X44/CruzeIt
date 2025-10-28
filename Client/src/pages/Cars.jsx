@@ -21,16 +21,34 @@ const Cars = () => {
 
   const [input, setInput] = useState(urlSearch || '')
   const [isLoading, setIsLoading] = useState(true)
-  const [selectedCategory, setSelectedCategory] = useState('all')
-  const [selectedFuelType, setSelectedFuelType] = useState('all')
+  const [selectedCategories, setSelectedCategories] = useState([])
+  const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
 
   const isSearchData = pickupLocation && pickupDate && returnDate
   const [filteredCars, setFilteredCars] = useState([])
 
   // Categories for filtering
-  const categories = ['all', 'SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
-  const fuelTypes = ['all', 'Petrol', 'Diesel', 'Electric', 'Hybrid']
+  const categories = ['SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
+  const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
+
+  // Toggle category selection
+  const toggleCategory = (category) => {
+    setSelectedCategories(prev => 
+      prev.includes(category) 
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    )
+  }
+
+  // Toggle fuel type selection
+  const toggleFuelType = (fuelType) => {
+    setSelectedFuelTypes(prev => 
+      prev.includes(fuelType) 
+        ? prev.filter(f => f !== fuelType)
+        : [...prev, fuelType]
+    )
+  }
 
   const applyFilter = () => {
     let filtered = cars.slice()
@@ -54,14 +72,14 @@ const Cars = () => {
       })
     }
 
-    // Apply category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter((car) => car.category === selectedCategory)
+    // Apply category filter (multiple selection)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter((car) => selectedCategories.includes(car.category))
     }
 
-    // Apply fuel type filter
-    if (selectedFuelType !== 'all') {
-      filtered = filtered.filter((car) => car.fuel_type === selectedFuelType)
+    // Apply fuel type filter (multiple selection)
+    if (selectedFuelTypes.length > 0) {
+      filtered = filtered.filter((car) => selectedFuelTypes.includes(car.fuel_type))
     }
 
     setFilteredCars(filtered)
@@ -105,8 +123,8 @@ const Cars = () => {
   // Clear all filters
   const clearFilters = () => {
     setInput('')
-    setSelectedCategory('all')
-    setSelectedFuelType('all')
+    setSelectedCategories([])
+    setSelectedFuelTypes([])
     searchParams.delete('search')
     setSearchParams(searchParams)
   }
@@ -123,7 +141,7 @@ const Cars = () => {
     if (cars.length > 0 && !isSearchData) {
       applyFilter()
     }
-  }, [input, cars, selectedCategory, selectedFuelType])
+  }, [input, cars, selectedCategories, selectedFuelTypes])
 
   // Update input when URL search param changes
   useEffect(() => {
@@ -166,6 +184,8 @@ const Cars = () => {
       }
     }
   }
+
+  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input
 
   return (
     <motion.div
@@ -232,7 +252,7 @@ const Cars = () => {
           )}
 
           <motion.button
-            whileHover={{ scale: 1.2, rotate: 90 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowFilters(!showFilters)}
             className='cursor-pointer'
@@ -246,77 +266,83 @@ const Cars = () => {
         </motion.div>
 
         {/* Filters Section */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0, y: -20 }}
-              animate={{ opacity: 1, height: 'auto', y: 0 }}
-              exit={{ opacity: 0, height: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className='mt-4 bg-white rounded-2xl shadow-lg p-6 max-w-140 w-full'
-            >
-              <div className='flex flex-col sm:flex-row gap-6'>
-                {/* Category Filter */}
-                <div className='flex-1'>
-                  <label className='text-sm font-semibold text-gray-700 mb-2 block'>Category</label>
-                  <div className='flex flex-wrap gap-2'>
-                    {categories.map((category) => (
-                      <motion.button
-                        key={category}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setSelectedCategory(category)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${
-                          selectedCategory === category
-                            ? 'bg-primary text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {category === 'all' ? 'All Categories' : category}
-                      </motion.button>
-                    ))}
+        <div className='w-full max-w-140 overflow-hidden'>
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -20 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -20 }}
+                transition={{ duration: 0.3 }}
+                className='mt-4 bg-white rounded-2xl shadow-lg p-6 w-full'
+              >
+                <div className='flex flex-col sm:flex-row gap-6'>
+                  {/* Category Filter */}
+                  <div className='flex-1'>
+                    <label className='text-sm font-semibold text-gray-700 mb-2 block'>
+                      Category {selectedCategories.length > 0 && `(${selectedCategories.length})`}
+                    </label>
+                    <div className='flex flex-wrap gap-2'>
+                      {categories.map((category) => (
+                        <motion.button
+                          key={category}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => toggleCategory(category)}
+                          className={`px-4 py-2 rounded-full text-sm transition-all ${
+                            selectedCategories.includes(category)
+                              ? 'bg-primary text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {category}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Fuel Type Filter */}
+                  <div className='flex-1'>
+                    <label className='text-sm font-semibold text-gray-700 mb-2 block'>
+                      Fuel Type {selectedFuelTypes.length > 0 && `(${selectedFuelTypes.length})`}
+                    </label>
+                    <div className='flex flex-wrap gap-2'>
+                      {fuelTypes.map((fuelType) => (
+                        <motion.button
+                          key={fuelType}
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => toggleFuelType(fuelType)}
+                          className={`px-4 py-2 rounded-full text-sm transition-all ${
+                            selectedFuelTypes.includes(fuelType)
+                              ? 'bg-primary text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
+                        >
+                          {fuelType}
+                        </motion.button>
+                      ))}
+                    </div>
                   </div>
                 </div>
 
-                {/* Fuel Type Filter */}
-                <div className='flex-1'>
-                  <label className='text-sm font-semibold text-gray-700 mb-2 block'>Fuel Type</label>
-                  <div className='flex flex-wrap gap-2'>
-                    {fuelTypes.map((fuelType) => (
-                      <motion.button
-                        key={fuelType}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setSelectedFuelType(fuelType)}
-                        className={`px-4 py-2 rounded-full text-sm transition-all ${
-                          selectedFuelType === fuelType
-                            ? 'bg-primary text-white shadow-md'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
-                      >
-                        {fuelType === 'all' ? 'All Fuels' : fuelType}
-                      </motion.button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Clear Filters Button */}
-              {(selectedCategory !== 'all' || selectedFuelType !== 'all' || input) && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={clearFilters}
-                  className='mt-4 px-6 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all text-sm font-medium'
-                >
-                  Clear All Filters
-                </motion.button>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                {/* Clear Filters Button */}
+                {hasActiveFilters && (
+                  <motion.button
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={clearFilters}
+                    className='mt-4 px-6 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all text-sm font-medium'
+                  >
+                    Clear All Filters
+                  </motion.button>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
 
       {/* Cars Grid Section */}
@@ -325,31 +351,43 @@ const Cars = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className='flex justify-between items-center mb-4 xl:px-20 max-w-7xl mx-auto'
+          className='flex justify-between items-center mb-4 xl:px-20 max-w-7xl mx-auto flex-wrap gap-4'
         >
           <p className='text-gray-500'>
             Showing {filteredCars.length} {filteredCars.length === 1 ? 'Car' : 'Cars'}
           </p>
           
           {/* Active Filters Display */}
-          {(selectedCategory !== 'all' || selectedFuelType !== 'all' || input) && (
-            <div className='flex items-center gap-2 text-sm'>
+          {hasActiveFilters && (
+            <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
               {input && (
                 <span className='px-3 py-1 bg-primary/10 text-primary rounded-full'>
                   "{input}"
                 </span>
               )}
-              {selectedCategory !== 'all' && (
-                <span className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full'>
-                  {selectedCategory}
+              {selectedCategories.map(category => (
+                <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
+                  {category}
+                  <button
+                    onClick={() => toggleCategory(category)}
+                    className='hover:text-blue-800'
+                  >
+                    ×
+                  </button>
                 </span>
-              )}
-              {selectedFuelType !== 'all' && (
-                <span className='px-3 py-1 bg-green-50 text-green-600 rounded-full'>
-                  {selectedFuelType}
+              ))}
+              {selectedFuelTypes.map(fuelType => (
+                <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
+                  {fuelType}
+                  <button
+                    onClick={() => toggleFuelType(fuelType)}
+                    className='hover:text-green-800'
+                  >
+                    ×
+                  </button>
                 </span>
-              )}
+              ))}
             </div>
           )}
         </motion.div>
@@ -439,4 +477,4 @@ const Cars = () => {
   )
 }
 
-export default Cars
+export default Cars;
