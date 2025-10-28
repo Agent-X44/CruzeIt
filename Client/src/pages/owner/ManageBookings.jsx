@@ -11,6 +11,7 @@ const ManageBookings = () => {
   const [bookings, setBookings] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedBooking, setSelectedBooking] = useState(null)
+  const [showCancelModal, setShowCancelModal] = useState(false)
 
   const fetchOwnerBookings = async () => {
     try {
@@ -38,15 +39,40 @@ const ManageBookings = () => {
     }
   }
 
+  const cancelConfirmedBooking = async (bookingId) => {
+    try {
+      const {data} = await axios.post('/api/bookings/cancel-confirmed', {bookingId})
+      if(data.success){
+        toast.success(data.message)
+        fetchOwnerBookings()
+        closeModal()
+      }else{
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   const handleRowClick = (booking) => {
     setSelectedBooking(booking)
   }
 
   const closeModal = () => {
     setSelectedBooking(null)
+    setShowCancelModal(false)
   }
 
-  // Helper function to format payment method display
+  const handleCancelConfirmed = () => {
+    setShowCancelModal(true)
+  }
+
+  const confirmCancellation = () => {
+    if (selectedBooking) {
+      cancelConfirmedBooking(selectedBooking._id)
+    }
+  }
+
   const formatPaymentMethod = (method) => {
     if (!method) return { label: 'Not specified', icon: null };
     
@@ -104,7 +130,6 @@ const ManageBookings = () => {
     fetchOwnerBookings()
   }, [])
 
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -352,7 +377,7 @@ const ManageBookings = () => {
 
       {/* Booking Details Modal */}
       <AnimatePresence>
-        {selectedBooking && (
+        {selectedBooking && !showCancelModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -368,7 +393,6 @@ const ManageBookings = () => {
               onClick={(e) => e.stopPropagation()}
               className="bg-white rounded-2xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
             >
-              {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-semibold">Booking Details</h2>
                 <button
@@ -381,9 +405,7 @@ const ManageBookings = () => {
                 </button>
               </div>
 
-              {/* Content */}
               <div className="space-y-6">
-                {/* Status Badge */}
                 <div className="flex items-center gap-3">
                   <span className={`px-4 py-2 rounded-full text-sm font-medium capitalize ${
                     selectedBooking.status === 'Confirmed' 
@@ -403,7 +425,6 @@ const ManageBookings = () => {
                   </span>
                 </div>
 
-                {/* Car Details */}
                 <div className="border border-borderColor rounded-xl p-5 bg-gray-50">
                   <h3 className="text-lg font-medium mb-3">Car Information</h3>
                   <div className="flex items-start gap-4 mb-4">
@@ -446,7 +467,6 @@ const ManageBookings = () => {
                   </div>
                 </div>
 
-                {/* Booking Information */}
                 <div className="border border-borderColor rounded-xl p-5">
                   <h3 className="text-lg font-medium mb-3">Booking Information</h3>
                   <div className="grid sm:grid-cols-2 gap-4">
@@ -495,7 +515,6 @@ const ManageBookings = () => {
                   </div>
                 </div>
 
-                {/* Customer Information */}
                 {selectedBooking.user && (
                   <div className="border border-borderColor rounded-xl p-5">
                     <h3 className="text-lg font-medium mb-3">Customer Information</h3>
@@ -522,7 +541,6 @@ const ManageBookings = () => {
                   </div>
                 )}
 
-                {/* Payment Information */}
                 <div className="border border-borderColor rounded-xl p-5 bg-gradient-to-br from-primary/5 to-primary/10">
                   <h3 className="text-lg font-medium mb-3">Payment Information</h3>
                   <div className="space-y-3">
@@ -544,7 +562,6 @@ const ManageBookings = () => {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 {selectedBooking.status === 'Pending' && (
                   <div className="flex gap-3 pt-4">
                     <motion.button
@@ -573,6 +590,120 @@ const ManageBookings = () => {
                     </motion.button>
                   </div>
                 )}
+
+                {selectedBooking.status === 'Confirmed' && (
+                  <div className="pt-4">
+                    <motion.button
+                      onClick={handleCancelConfirmed}
+                      className="w-full bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancel Confirmed Booking
+                    </motion.button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Cancel Confirmation Modal */}
+      <AnimatePresence>
+        {showCancelModal && selectedBooking && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowCancelModal(false)}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6"
+            >
+              <div className="flex justify-center">
+                <motion.div 
+                  className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center"
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                >
+                  <svg className="w-10 h-10 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </motion.div>
+              </div>
+
+              <div className="text-center">
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  Cancel Confirmed Booking?
+                </h2>
+                <p className="text-gray-600">
+                  This will cancel a confirmed booking. The customer will be notified. This action cannot be undone.
+                </p>
+              </div>
+
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Car:</span>
+                  <span className="font-semibold">{selectedBooking.car.brand} {selectedBooking.car.model}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Customer:</span>
+                  <span className="font-semibold">
+                    {selectedBooking.user?.name || selectedBooking.user?.username || 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Pickup:</span>
+                  <span className="font-semibold">{selectedBooking.pickupDate.split('T')[0]}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Return:</span>
+                  <span className="font-semibold">{selectedBooking.returnDate.split('T')[0]}</span>
+                </div>
+                <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                  <span className="text-gray-600 text-sm">Total:</span>
+                  <span className="font-bold text-lg text-primary">
+                    {currency}{selectedBooking.price.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
+                <svg className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="text-sm text-red-800">
+                  <p className="font-semibold">Important</p>
+                  <p>Cancelling confirmed bookings may affect your reputation and customer satisfaction.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setShowCancelModal(false)}
+                  className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Keep Booking
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={confirmCancellation}
+                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
+                >
+                  Yes, Cancel
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>
@@ -582,4 +713,4 @@ const ManageBookings = () => {
   )
 }
 
-export default ManageBookings
+export default ManageBookings;
