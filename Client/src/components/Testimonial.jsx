@@ -47,8 +47,6 @@ const Testimonial = () => {
   })
   const [hoveredRating, setHoveredRating] = useState(0)
 
-  // Removed carousel state - now showing all reviews
-
   // Enhanced bad words list for filtering
   const badWords = [
     'gago', 'putang', 'tangina', 'tanginamo', 'bobo', 'tanga', 'puta', 'punyeta',
@@ -143,8 +141,6 @@ const Testimonial = () => {
     }
   }, [selectedFilter, testimonials])
 
-  // Removed auto-slide effect and pagination
-
   const handleWriteReviewClick = () => {
     if (!user) {
       toast.error('Please log in or create an account to write a review', {
@@ -180,7 +176,6 @@ const Testimonial = () => {
 
       try {
         if (editingId) {
-          // Update existing review
           const { data } = await axios.put(`/api/testimonials/update/${editingId}`, {
             rating: formData.rating,
             testimonial: formData.testimonial
@@ -193,7 +188,6 @@ const Testimonial = () => {
             toast.error(data.message || 'Failed to update review')
           }
         } else {
-          // Create new review
           const { data } = await axios.post('/api/testimonials/create', {
             name: user.name,
             rating: formData.rating,
@@ -579,7 +573,7 @@ const Testimonial = () => {
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       ) : filteredTestimonials.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
+        <div className="flex flex-wrap justify-center gap-8 px-4">
           {filteredTestimonials.map((testimonial) => (
             <motion.div 
               key={testimonial._id}
@@ -591,7 +585,7 @@ const Testimonial = () => {
                 scale: 1.02,
                 transition: { duration: 0.3 }
               }}
-              className="bg-white p-6 rounded-xl shadow-lg cursor-pointer relative"
+              className="bg-white p-6 rounded-xl shadow-lg cursor-pointer relative w-full sm:w-[calc(50%-1rem)] lg:w-[calc(33.333%-1.5rem)] max-w-sm"
             >
               {/* Action buttons - Only show for logged in users */}
               {user && (
