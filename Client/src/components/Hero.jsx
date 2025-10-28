@@ -92,7 +92,7 @@ const Hero = () => {
         onSubmit={handleSearch} 
         className="flex flex-col md:flex-row items-start md:items-center justify-center py-3 px-4 md:py-4 md:px-6 rounded-xl md:rounded-full w-[95%] max-w-[50rem] bg-white shadow-xl mx-4"
       >
-         <div className="flex flex-col md:flex-row items-start md:items-center justify-center gap-4 md:gap-6 lg:gap-8 w-full">
+         <div className="flex flex-col md:flex-row items-start md:items-center justify-center gap-4 md:gap-6 lg:gap-10 w-full">
           {/* Pickup Location */}
           <div className="flex flex-col items-start gap-1.5 md:gap-2 w-full md:w-auto relative" ref={dropdownRef}>
             <label className="text-xs md:text-sm font-medium text-gray-700">Pickup Location</label>
