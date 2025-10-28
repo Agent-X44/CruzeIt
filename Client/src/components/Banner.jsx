@@ -70,7 +70,7 @@ const Banner = () => {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.8, ease: 'easeOut' }}
-      className='relative flex flex-col md:flex-row md:items-center items-center justify-between px-8 md:px-14 py-12 md:py-10 bg-gradient-to-r from-[#344E41] to-[#DAD7CD] max-w-8xl min-h-[280px] mx-3 md:mx-auto rounded-2xl overflow-hidden shadow-2xl'
+      className='relative flex flex-col md:flex-row md:items-center items-center justify-between px-8 md:px-14 py-12 md:py-10 bg-gradient-to-r from-[#344E41] to-[#DAD7CD] max-w-7xl min-h-[280px] mx-3 md:mx-auto rounded-2xl overflow-hidden shadow-2xl'
     >
       {/* Decorative Background Elements */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
