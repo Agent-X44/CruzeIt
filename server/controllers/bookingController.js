@@ -28,19 +28,23 @@ export const checkAvailabilityofCar = async (req, res) => {
             return res.json({success: false, message: 'Invalid input date. Return date must be after pickup date'})
         }
         
-        // fetch all available cars in the location
-        const cars = await Car.find({location, isAvailable: true})
+        // UPDATED: Fetch all cars in the location (including unavailable ones temporarily)
+        const cars = await Car.find({location})
 
-        // check car availability for given dates using promise
+        // UPDATED: Check car availability for given dates - filter out cars with bookings
         const availableCarsPromises = cars.map(async (car) => {
-            const isAvailable = await checkAvailability(car._id, pickupDate, 
-            returnDate)
-            return {...car._doc, isAvailable: isAvailable}
-
+            // Check if car is marked as available by owner AND has no conflicting bookings
+            const hasNoConflictingBookings = await checkAvailability(car._id, pickupDate, returnDate)
+            return {
+                ...car._doc, 
+                isAvailableForDates: car.isAvailable && hasNoConflictingBookings
+            }
         })
 
         let availableCars = await Promise.all(availableCarsPromises);
-        availableCars = availableCars.filter((car) => car.isAvailable === true)
+        
+        // UPDATED: Only return cars that are both marked available AND have no bookings
+        availableCars = availableCars.filter((car) => car.isAvailableForDates === true)
 
         res.json({success: true, availableCars})
 
@@ -125,7 +129,7 @@ export const createBooking = async (req, res) => {
             price,
             customerContact: contactNumber,
             ownerContact: ownerPhone,
-            paymentMethod: paymentMethod.toLowerCase() // Store in lowercase
+            paymentMethod: paymentMethod.toLowerCase()
         })
         
         res.json({success: true, message: 'Booking created successfully'})
@@ -158,7 +162,7 @@ export const getOwnerBookings = async (req, res) => {
         }
         const bookings = await Booking.find({owner: req.user._id})
         .populate('car')
-        .populate('user', 'name email username') // Populate user details for display
+        .populate('user', 'name email username')
         .sort({createdAt: -1})
         res.json({success: true, bookings})
     
@@ -207,7 +211,7 @@ export const cancelBooking = async (req, res) => {
             return res.json({ success: false, message: 'You are not authorized to cancel this booking' });
         }
 
-        // NEW: Prevent cancellation of confirmed bookings by users
+        // Prevent cancellation of confirmed bookings by users
         if (booking.status === 'Confirmed') {
             return res.json({ 
                 success: false, 
@@ -257,7 +261,7 @@ export const deleteBooking = async (req, res) => {
             return res.json({ success: false, message: 'You are not authorized to delete this booking' });
         }
 
-        // NEW: Prevent deletion of confirmed bookings by users
+        // Prevent deletion of confirmed bookings by users
         if (booking.status === 'Confirmed') {
             return res.json({ 
                 success: false, 
@@ -281,7 +285,7 @@ export const deleteBooking = async (req, res) => {
     }
 };
 
-// NEW: api to cancel confirmed booking by owner
+// api to cancel confirmed booking by owner
 export const cancelConfirmedBooking = async (req, res) => {
     try {
         const { _id } = req.user;
