@@ -486,14 +486,13 @@ const MyBookings = () => {
                 <div className="md:col-span-1 flex flex-col justify-between gap-6 text-right">
                   <div>
                     <p className="text-gray-500 text-sm">Total Price</p>
-                    <motion.h1
+                    <h1
                       className="text-2xl font-semibold text-primary"
-                      animate={{ scale: [1, 1.05, 1] }}
                       transition={{ repeat: Infinity, duration: 3 }}
                     >
                       {currency}
                       {booking.price}
-                    </motion.h1>
+                    </h1>
                     <p className="text-gray-400 text-xs mt-1">
                       Booked on {booking.createdAt.split('T')[0]}
                     </p>
