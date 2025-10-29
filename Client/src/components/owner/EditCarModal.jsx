@@ -166,6 +166,7 @@ const EditCarModal = ({ isOpen, onClose, car, onSuccess }) => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
                   >
                     <option value="">Select Category</option>
+                    <option value="MPV">MPV</option>
                     <option value="SUV">SUV</option>
                     <option value="Sedan">Sedan</option>
                     <option value="Hatchback">Hatchback</option>
