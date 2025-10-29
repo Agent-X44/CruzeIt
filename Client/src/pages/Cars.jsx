@@ -24,6 +24,11 @@ const Cars = () => {
   const [selectedCategories, setSelectedCategories] = useState([])
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
+  
+  // NEW: State for editable dates
+  const [editablePickupDate, setEditablePickupDate] = useState(pickupDate || '')
+  const [editableReturnDate, setEditableReturnDate] = useState(returnDate || '')
+  const [isEditingDates, setIsEditingDates] = useState(false)
 
   const isSearchData = pickupLocation && pickupDate && returnDate
   const [filteredCars, setFilteredCars] = useState([])
@@ -48,6 +53,29 @@ const Cars = () => {
         ? prev.filter(f => f !== fuelType)
         : [...prev, fuelType]
     )
+  }
+
+  // NEW: Handle date updates
+  const handleDateUpdate = () => {
+    if (editablePickupDate && editableReturnDate) {
+      // Update URL with new dates
+      searchParams.set('pickupDate', editablePickupDate)
+      searchParams.set('returnDate', editableReturnDate)
+      setSearchParams(searchParams)
+      
+      // Refresh available cars with new dates
+      if (pickupLocation) {
+        searchCarAvailability()
+      }
+    }
+    setIsEditingDates(false)
+  }
+
+  // NEW: Cancel date editing
+  const cancelDateEditing = () => {
+    setEditablePickupDate(pickupDate || '')
+    setEditableReturnDate(returnDate || '')
+    setIsEditingDates(false)
   }
 
   const applyFilter = () => {
@@ -89,7 +117,11 @@ const Cars = () => {
     setIsLoading(true)
     try {
       const { data } = await axios.post('/api/bookings/check-availability',
-        { location: pickupLocation, pickupDate, returnDate })
+        { 
+          location: pickupLocation, 
+          pickupDate: editablePickupDate || pickupDate, 
+          returnDate: editableReturnDate || returnDate 
+        })
       if (data.success) {
         setFilteredCars(data.availableCars)
         if (data.availableCars.length === 0) {
@@ -125,8 +157,23 @@ const Cars = () => {
     setInput('')
     setSelectedCategories([])
     setSelectedFuelTypes([])
+    setIsEditingDates(false)
     searchParams.delete('search')
     setSearchParams(searchParams)
+  }
+
+  // NEW: Clear date filters only
+  const clearDateFilters = () => {
+    searchParams.delete('pickupDate')
+    searchParams.delete('returnDate')
+    searchParams.delete('pickupLocation')
+    setSearchParams(searchParams)
+    setEditablePickupDate('')
+    setEditableReturnDate('')
+    setIsEditingDates(false)
+    
+    // Refresh the page to show all cars
+    window.location.reload()
   }
 
   useEffect(() => {
@@ -149,6 +196,12 @@ const Cars = () => {
       setInput(urlSearch)
     }
   }, [urlSearch])
+
+  // NEW: Update editable dates when URL params change
+  useEffect(() => {
+    if (pickupDate) setEditablePickupDate(pickupDate)
+    if (returnDate) setEditableReturnDate(returnDate)
+  }, [pickupDate, returnDate])
 
   // Animation variants
   const containerVariants = {
@@ -185,7 +238,18 @@ const Cars = () => {
     }
   }
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input
+  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input || pickupLocation
+
+  // NEW: Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    })
+  }
 
   return (
     <motion.div
@@ -326,6 +390,110 @@ const Cars = () => {
                   </div>
                 </div>
 
+                {/* Date Filters */}
+                {(pickupLocation || pickupDate || returnDate) && (
+                  <div className='mt-6 border-t pt-6'>
+                    <div className='flex items-center justify-between mb-4'>
+                      <label className='text-sm font-semibold text-gray-700'>
+                        Date & Location Filters
+                      </label>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={clearDateFilters}
+                        className='text-xs text-red-600 hover:text-red-800 px-3 py-1 bg-red-50 rounded-lg'
+                      >
+                        Clear Dates
+                      </motion.button>
+                    </div>
+                    
+                    <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
+                      {/* Pickup Location */}
+                      {pickupLocation && (
+                        <div className='flex flex-col'>
+                          <label className='text-xs text-gray-500 mb-1'>Pickup Location</label>
+                          <div className='px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium'>
+                            {pickupLocation}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Pickup Date */}
+                      <div className='flex flex-col'>
+                        <label className='text-xs text-gray-500 mb-1'>Pick-up Date</label>
+                        {isEditingDates ? (
+                          <input
+                            type="date"
+                            value={editablePickupDate}
+                            onChange={(e) => setEditablePickupDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
+                          />
+                        ) : (
+                          <div 
+                            onClick={() => setIsEditingDates(true)}
+                            className='px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-green-100 transition-colors'
+                          >
+                            {formatDate(pickupDate)}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Return Date */}
+                      <div className='flex flex-col'>
+                        <label className='text-xs text-gray-500 mb-1'>Return Date</label>
+                        {isEditingDates ? (
+                          <input
+                            type="date"
+                            value={editableReturnDate}
+                            onChange={(e) => setEditableReturnDate(e.target.value)}
+                            min={editablePickupDate || new Date().toISOString().split('T')[0]}
+                            className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
+                          />
+                        ) : (
+                          <div 
+                            onClick={() => setIsEditingDates(true)}
+                            className='px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-green-100 transition-colors'
+                          >
+                            {formatDate(returnDate)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Date Edit Actions */}
+                    {isEditingDates && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className='flex gap-2 mt-4'
+                      >
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={handleDateUpdate}
+                          disabled={!editablePickupDate || !editableReturnDate}
+                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                            editablePickupDate && editableReturnDate
+                              ? 'bg-primary text-white hover:bg-primary-dull'
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          Update Dates
+                        </motion.button>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={cancelDateEditing}
+                          className='px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300'
+                        >
+                          Cancel
+                        </motion.button>
+                      </motion.div>
+                    )}
+                  </div>
+                )}
+
                 {/* Clear Filters Button */}
                 {hasActiveFilters && (
                   <motion.button
@@ -361,11 +529,53 @@ const Cars = () => {
           {hasActiveFilters && (
             <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
-              {input && (
-                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full'>
-                  "{input}"
+              
+              {/* Location Filter */}
+              {pickupLocation && (
+                <span className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1'>
+                  📍 {pickupLocation}
+                  <button
+                    onClick={clearDateFilters}
+                    className='hover:text-purple-800'
+                  >
+                    ×
+                  </button>
                 </span>
               )}
+              
+              {/* Date Filters */}
+              {pickupDate && returnDate && (
+                <span 
+                  onClick={() => setIsEditingDates(true)}
+                  className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1 cursor-pointer hover:bg-green-100 transition-colors'
+                >
+                  📅 {formatDate(pickupDate)} - {formatDate(returnDate)}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      clearDateFilters()
+                    }}
+                    className='hover:text-green-800'
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              
+              {/* Search Filter */}
+              {input && (
+                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full flex items-center gap-1'>
+                  "{input}"
+                  <button
+                    onClick={() => setInput('')}
+                    className='hover:text-primary-dull'
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+              
+              {/* Category Filters */}
               {selectedCategories.map(category => (
                 <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
                   {category}
@@ -377,6 +587,8 @@ const Cars = () => {
                   </button>
                 </span>
               ))}
+              
+              {/* Fuel Type Filters */}
               {selectedFuelTypes.map(fuelType => (
                 <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
                   {fuelType}
