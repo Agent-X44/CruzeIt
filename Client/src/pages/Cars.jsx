@@ -122,7 +122,9 @@ const Cars = () => {
 
   // Handle location selection from dropdown
   const handleLocationSelect = (location) => {
+    // Set the pickup location, clear any text search input, and close dropdown
     setPickupLocation(location)
+    setInput('')
     setShowLocationDropdown(false)
   }
 
@@ -424,17 +426,21 @@ const Cars = () => {
                           className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full placeholder:text-gray-500 focus:outline-primary focus:border-primary text-sm"
                           placeholder="Enter location"
                         />
-                        {showLocationDropdown && locationSuggestions.length > 0 && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
-                            {locationSuggestions.map((location) => (
-                              <div
-                                key={location}
-                                onClick={() => handleLocationSelect(location)}
-                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
-                              >
-                                {location}
-                              </div>
-                            ))}
+                        {showLocationDropdown && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full md:w-48">
+                            {locationSuggestions.length > 0 ? (
+                              locationSuggestions.map((location) => (
+                                <div
+                                  key={location}
+                                  onClick={() => handleLocationSelect(location)}
+                                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
+                                >
+                                  {location}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-3 py-2 text-sm text-gray-700">No locations found</div>
+                            )}
                           </div>
                         )}
                       </div>
