@@ -2,6 +2,7 @@ import imagekit from "../configs/imageKit.js";
 import Booking from "../models/Booking.js";
 import Car from "../models/Car.js";
 import User from "../models/User.js";
+import Location from "../models/Location.js";
 import fs from "fs";
 
 
@@ -44,6 +45,18 @@ export const addCar = async (req, res) => {
 
         const image = optimizedImageUrl;
         await Car.create({...car, owner: _id, image})
+
+        // NEW: Auto-save location to locations collection
+        if (car.location && car.location.trim() !== '') {
+            const locationExists = await Location.findOne({ 
+                name: { $regex: new RegExp(`^${car.location.trim()}$`, 'i') } 
+            });
+            
+            if (!locationExists) {
+                await Location.create({ name: car.location.trim() });
+            }
+        }
+
         res.json({success: true, message: 'Car added successfully'})
         
     } catch (error) {
@@ -123,7 +136,7 @@ export const getDashboardData = async (req, res) => {
         const cars = await Car.find({owner: _id})
         const bookings = await Booking.find({owner: _id})
         .populate('car')
-        .populate('user', 'name email username') // Add this line to populate user data
+        .populate('user', 'name email username')
         .sort({createdAt: -1})
 
         const pendingBookings = await Booking.find({owner: _id, status :'pending'})
@@ -230,6 +243,17 @@ export const updateCar = async (req, res) => {
 
         await car.save();
 
+        // NEW: Auto-save location if it changed
+        if (location && location.trim() !== '' && location !== car.location) {
+            const locationExists = await Location.findOne({ 
+                name: { $regex: new RegExp(`^${location.trim()}$`, 'i') } 
+            });
+            
+            if (!locationExists) {
+                await Location.create({ name: location.trim() });
+            }
+        }
+
         res.json({ success: true, message: 'Car updated successfully' });
     } catch (error) {
         console.log(error.message);
@@ -237,3 +261,14 @@ export const updateCar = async (req, res) => {
     }
 };
 
+//API to get all locations
+export const getAllLocations = async (req, res) => {
+    try {
+        const locations = await Location.find().sort({ name: 1 });
+        const locationNames = locations.map(loc => loc.name);
+        res.json({ success: true, locations: locationNames });
+    } catch (error) {
+        console.log(error.message);
+        res.json({ success: false, message: error.message });
+    }
+};
