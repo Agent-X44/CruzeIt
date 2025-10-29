@@ -25,10 +25,16 @@ const Cars = () => {
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   
-  // NEW: State for editable dates
+  // State for editable dates and location
   const [editablePickupDate, setEditablePickupDate] = useState(pickupDate || '')
   const [editableReturnDate, setEditableReturnDate] = useState(returnDate || '')
+  const [editableLocation, setEditableLocation] = useState(pickupLocation || '')
   const [isEditingDates, setIsEditingDates] = useState(false)
+  const [isEditingLocation, setIsEditingLocation] = useState(false)
+  
+  // NEW: State for collapsible filters on scroll
+  const [isFiltersSticky, setIsFiltersSticky] = useState(false)
+  const [isScrolled, setIsScrolled] = useState(false)
 
   const isSearchData = pickupLocation && pickupDate && returnDate
   const [filteredCars, setFilteredCars] = useState([])
@@ -36,6 +42,22 @@ const Cars = () => {
   // Categories for filtering
   const categories = ['SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
   const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
+
+  // NEW: Scroll handler for collapsible filters
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = window.scrollY || document.documentElement.scrollTop
+      setIsScrolled(scrollTop > 100)
+      
+      // Auto-collapse filters when scrolling down
+      if (scrollTop > 200 && showFilters) {
+        setShowFilters(false)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [showFilters])
 
   // Toggle category selection
   const toggleCategory = (category) => {
@@ -55,7 +77,7 @@ const Cars = () => {
     )
   }
 
-  // NEW: Handle date updates
+  // Handle date updates
   const handleDateUpdate = () => {
     if (editablePickupDate && editableReturnDate) {
       // Update URL with new dates
@@ -64,18 +86,39 @@ const Cars = () => {
       setSearchParams(searchParams)
       
       // Refresh available cars with new dates
-      if (pickupLocation) {
+      if (pickupLocation || editableLocation) {
         searchCarAvailability()
       }
     }
     setIsEditingDates(false)
   }
 
-  // NEW: Cancel date editing
+  // NEW: Handle location update
+  const handleLocationUpdate = () => {
+    if (editableLocation.trim()) {
+      // Update URL with new location
+      searchParams.set('pickupLocation', editableLocation.trim())
+      setSearchParams(searchParams)
+      
+      // Refresh available cars with new location
+      if (pickupDate || editablePickupDate) {
+        searchCarAvailability()
+      }
+    }
+    setIsEditingLocation(false)
+  }
+
+  // Cancel date editing
   const cancelDateEditing = () => {
     setEditablePickupDate(pickupDate || '')
     setEditableReturnDate(returnDate || '')
     setIsEditingDates(false)
+  }
+
+  // NEW: Cancel location editing
+  const cancelLocationEditing = () => {
+    setEditableLocation(pickupLocation || '')
+    setIsEditingLocation(false)
   }
 
   const applyFilter = () => {
@@ -118,14 +161,14 @@ const Cars = () => {
     try {
       const { data } = await axios.post('/api/bookings/check-availability',
         { 
-          location: pickupLocation, 
+          location: editableLocation || pickupLocation, 
           pickupDate: editablePickupDate || pickupDate, 
           returnDate: editableReturnDate || returnDate 
         })
       if (data.success) {
         setFilteredCars(data.availableCars)
         if (data.availableCars.length === 0) {
-          toast.error('No cars available for selected dates')
+          toast.error('No cars available for selected criteria')
         }
       } else {
         toast.error(data.message || 'Failed to fetch available cars')
@@ -158,19 +201,22 @@ const Cars = () => {
     setSelectedCategories([])
     setSelectedFuelTypes([])
     setIsEditingDates(false)
+    setIsEditingLocation(false)
     searchParams.delete('search')
     setSearchParams(searchParams)
   }
 
-  // NEW: Clear date filters only
-  const clearDateFilters = () => {
+  // Clear date and location filters only
+  const clearDateLocationFilters = () => {
     searchParams.delete('pickupDate')
     searchParams.delete('returnDate')
     searchParams.delete('pickupLocation')
     setSearchParams(searchParams)
     setEditablePickupDate('')
     setEditableReturnDate('')
+    setEditableLocation('')
     setIsEditingDates(false)
+    setIsEditingLocation(false)
     
     // Refresh the page to show all cars
     window.location.reload()
@@ -197,11 +243,12 @@ const Cars = () => {
     }
   }, [urlSearch])
 
-  // NEW: Update editable dates when URL params change
+  // Update editable dates and location when URL params change
   useEffect(() => {
     if (pickupDate) setEditablePickupDate(pickupDate)
     if (returnDate) setEditableReturnDate(returnDate)
-  }, [pickupDate, returnDate])
+    if (pickupLocation) setEditableLocation(pickupLocation)
+  }, [pickupDate, returnDate, pickupLocation])
 
   // Animation variants
   const containerVariants = {
@@ -240,7 +287,7 @@ const Cars = () => {
 
   const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input || pickupLocation
 
-  // NEW: Format date for display
+  // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -281,7 +328,9 @@ const Cars = () => {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02 }}
-          className='flex items-center bg-white px-4 mt-6 max-w-140 w-full h-12 rounded-full shadow-lg'
+          className={`flex items-center bg-white px-4 mt-6 max-w-140 w-full h-12 rounded-full shadow-lg ${
+            isScrolled ? 'sticky top-4 z-40 max-w-4xl transition-all duration-300' : ''
+          }`}
         >
           <motion.img 
             animate={{ rotate: input ? 360 : 0 }}
@@ -390,7 +439,7 @@ const Cars = () => {
                   </div>
                 </div>
 
-                {/* Date Filters */}
+                {/* Date & Location Filters */}
                 {(pickupLocation || pickupDate || returnDate) && (
                   <div className='mt-6 border-t pt-6'>
                     <div className='flex items-center justify-between mb-4'>
@@ -400,23 +449,63 @@ const Cars = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={clearDateFilters}
+                        onClick={clearDateLocationFilters}
                         className='text-xs text-red-600 hover:text-red-800 px-3 py-1 bg-red-50 rounded-lg'
                       >
-                        Clear Dates
+                        Clear Dates & Location
                       </motion.button>
                     </div>
                     
-                    <div className='grid grid-cols-1 sm:grid-cols-3 gap-4'>
-                      {/* Pickup Location */}
-                      {pickupLocation && (
-                        <div className='flex flex-col'>
-                          <label className='text-xs text-gray-500 mb-1'>Pickup Location</label>
-                          <div className='px-3 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium'>
-                            {pickupLocation}
+                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
+                      {/* Pickup Location - Editable */}
+                      <div className='flex flex-col'>
+                        <label className='text-xs text-gray-500 mb-1'>Pickup Location</label>
+                        {isEditingLocation ? (
+                          <div className='flex flex-col gap-2'>
+                            <input
+                              type="text"
+                              value={editableLocation}
+                              onChange={(e) => setEditableLocation(e.target.value)}
+                              placeholder="Enter location"
+                              className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
+                              autoFocus
+                            />
+                            <div className='flex gap-2'>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={handleLocationUpdate}
+                                disabled={!editableLocation.trim()}
+                                className={`px-2 py-1 rounded text-xs font-medium flex-1 ${
+                                  editableLocation.trim()
+                                    ? 'bg-primary text-white hover:bg-primary-dull'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                Update
+                              </motion.button>
+                              <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={cancelLocationEditing}
+                                className='px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-medium flex-1 hover:bg-gray-300'
+                              >
+                                Cancel
+                              </motion.button>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        ) : (
+                          <div 
+                            onClick={() => setIsEditingLocation(true)}
+                            className='px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-purple-100 transition-colors flex items-center justify-between'
+                          >
+                            <span>{pickupLocation}</span>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
                       
                       {/* Pickup Date */}
                       <div className='flex flex-col'>
@@ -459,38 +548,37 @@ const Cars = () => {
                           </div>
                         )}
                       </div>
-                    </div>
 
-                    {/* Date Edit Actions */}
-                    {isEditingDates && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className='flex gap-2 mt-4'
-                      >
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={handleDateUpdate}
-                          disabled={!editablePickupDate || !editableReturnDate}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                            editablePickupDate && editableReturnDate
-                              ? 'bg-primary text-white hover:bg-primary-dull'
-                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          }`}
-                        >
-                          Update Dates
-                        </motion.button>
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={cancelDateEditing}
-                          className='px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300'
-                        >
-                          Cancel
-                        </motion.button>
-                      </motion.div>
-                    )}
+                      {/* Date Edit Actions */}
+                      {isEditingDates && (
+                        <div className='flex flex-col justify-end gap-2'>
+                          <label className='text-xs text-gray-500 mb-1 invisible'>Actions</label>
+                          <div className='flex gap-2'>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={handleDateUpdate}
+                              disabled={!editablePickupDate || !editableReturnDate}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium flex-1 ${
+                                editablePickupDate && editableReturnDate
+                                  ? 'bg-primary text-white hover:bg-primary-dull'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
+                            >
+                              Update
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={cancelDateEditing}
+                              className='px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium flex-1 hover:bg-gray-300'
+                            >
+                              Cancel
+                            </motion.button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -530,12 +618,18 @@ const Cars = () => {
             <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
               
-              {/* Location Filter */}
+              {/* Location Filter - Editable */}
               {pickupLocation && (
-                <span className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1'>
+                <span 
+                  onClick={() => setIsEditingLocation(true)}
+                  className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-100 transition-colors'
+                >
                   📍 {pickupLocation}
                   <button
-                    onClick={clearDateFilters}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      clearDateLocationFilters()
+                    }}
                     className='hover:text-purple-800'
                   >
                     ×
@@ -553,7 +647,7 @@ const Cars = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      clearDateFilters()
+                      clearDateLocationFilters()
                     }}
                     className='hover:text-green-800'
                   >
