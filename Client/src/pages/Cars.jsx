@@ -351,7 +351,7 @@ const Cars = () => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className='flex justify-between items-center mb-4 xl:px-20 max-w-7xl mx-auto flex-wrap gap-4'
+          className='flex justify-between items-center mb-4 max-w-7xl mx-auto flex-wrap gap-4'
         >
           <p className='text-gray-500'>
             Showing {filteredCars.length} {filteredCars.length === 1 ? 'Car' : 'Cars'}
@@ -362,29 +362,27 @@ const Cars = () => {
             <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
               {input && (
-                <span className='px-3 py-1 rounded-full' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
+                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full'>
                   "{input}"
                 </span>
               )}
               {selectedCategories.map(category => (
-                <span key={category} className='px-3 py-1 rounded-full flex items-center gap-1' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
+                <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
                   {category}
                   <button
                     onClick={() => toggleCategory(category)}
-                    className='hover:opacity-70 transition-opacity'
-                    style={{ color: '#3a5a40' }}
+                    className='hover:text-blue-800'
                   >
                     ×
                   </button>
                 </span>
               ))}
               {selectedFuelTypes.map(fuelType => (
-                <span key={fuelType} className='px-3 py-1 rounded-full flex items-center gap-1' style={{ backgroundColor: '#e8f3ea', color: '#3a5a40' }}>
+                <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
                   {fuelType}
                   <button
                     onClick={() => toggleFuelType(fuelType)}
-                    className='hover:opacity-70 transition-opacity'
-                    style={{ color: '#3a5a40' }}
+                    className='hover:text-green-800'
                   >
                     ×
                   </button>
@@ -402,17 +400,19 @@ const Cars = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 xl:px-20 max-w-7xl mx-auto'
+              className='flex justify-center'
             >
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.3, delay: i * 0.1 }}
-                  className="bg-gray-200 rounded-lg h-80 animate-pulse"
-                />
-              ))}
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 max-w-7xl mx-auto w-full justify-items-center'>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: i * 0.1 }}
+                    className="bg-gray-200 rounded-lg h-80 w-full max-w-sm animate-pulse"
+                  />
+                ))}
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -420,27 +420,39 @@ const Cars = () => {
               variants={containerVariants}
               initial="hidden"
               animate="visible"
-              className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 xl:px-20 max-w-7xl mx-auto'
+              className='flex justify-center'
             >
-              <AnimatePresence mode="popLayout">
-                {filteredCars.map((car, index) => (
-                  <motion.div 
-                    key={car._id}
-                    variants={cardVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit="exit"
-                    layout
-                    whileHover={{ 
-                      y: -8, 
-                      scale: 1.03,
-                      transition: { duration: 0.3 }
-                    }}
-                  >
-                    <CarCards car={car} />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              <div className={`
+                grid gap-8 mt-4 max-w-7xl mx-auto w-full
+                ${filteredCars.length === 1 ? 'grid-cols-1 justify-items-center' : ''}
+                ${filteredCars.length === 2 ? 'grid-cols-1 sm:grid-cols-2 justify-items-center' : ''}
+                ${filteredCars.length >= 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : ''}
+              `}>
+                <AnimatePresence mode="popLayout">
+                  {filteredCars.map((car, index) => (
+                    <motion.div 
+                      key={car._id}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      layout
+                      whileHover={{ 
+                        y: -8, 
+                        scale: 1.03,
+                        transition: { duration: 0.3 }
+                      }}
+                      className={`
+                        ${filteredCars.length === 1 ? 'w-full max-w-sm' : ''}
+                        ${filteredCars.length === 2 ? 'w-full max-w-sm' : ''}
+                        ${filteredCars.length >= 3 ? 'w-full' : ''}
+                      `}
+                    >
+                      <CarCards car={car} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
