@@ -238,10 +238,7 @@ const AddCar = () => {
               value={car.model}
               onChange={(e) => {
                 const value = e.target.value
-                // Only allow letters and spaces
-                if (/^[A-Za-z\s]*$/.test(value)) {
-                  setCar({ ...car, model: value })
-                }
+                setCar({ ...car, model: value })
               }}
               onFocus={() => setFocusedField('model')}
               onBlur={() => setFocusedField(null)}
