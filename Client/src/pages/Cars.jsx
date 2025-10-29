@@ -12,10 +12,10 @@ const Cars = () => {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   
-  const pickupLocation = searchParams.get('pickupLocation')
-  const pickupDate = searchParams.get('pickupDate')
-  const returnDate = searchParams.get('returnDate')
-  const urlSearch = searchParams.get('search') // Get search from URL
+  const urlPickupLocation = searchParams.get('pickupLocation')
+  const urlPickupDate = searchParams.get('pickupDate')
+  const urlReturnDate = searchParams.get('returnDate')
+  const urlSearch = searchParams.get('search')
 
   const { cars, axios } = useAppContext()
 
@@ -25,15 +25,16 @@ const Cars = () => {
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   
-  // State for editable dates and location
-  const [editablePickupDate, setEditablePickupDate] = useState(pickupDate || '')
-  const [editableReturnDate, setEditableReturnDate] = useState(returnDate || '')
-  const [editableLocation, setEditableLocation] = useState(pickupLocation || '')
+  // NEW: Built-in location and date states
+  const [pickupLocation, setPickupLocation] = useState(urlPickupLocation || '')
+  const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
+  const [returnDate, setReturnDate] = useState(urlReturnDate || '')
   const [isEditingDates, setIsEditingDates] = useState(false)
   const [isEditingLocation, setIsEditingLocation] = useState(false)
+  const [locationSuggestions, setLocationSuggestions] = useState([])
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false)
   
-  // NEW: State for collapsible filters on scroll
-  const [isFiltersSticky, setIsFiltersSticky] = useState(false)
+  // Scroll state for collapsible filters
   const [isScrolled, setIsScrolled] = useState(false)
 
   const isSearchData = pickupLocation && pickupDate && returnDate
@@ -43,7 +44,10 @@ const Cars = () => {
   const categories = ['SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
   const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
 
-  // NEW: Scroll handler for collapsible filters
+  // NEW: Available locations (you can fetch this from your API)
+  const availableLocations = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose']
+
+  // Scroll handler for collapsible filters
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop
@@ -58,6 +62,20 @@ const Cars = () => {
     window.addEventListener('scroll', handleScroll, { passive: true })
     return () => window.removeEventListener('scroll', handleScroll)
   }, [showFilters])
+
+  // NEW: Filter locations based on input
+  useEffect(() => {
+    if (pickupLocation.trim()) {
+      const filtered = availableLocations.filter(location =>
+        location.toLowerCase().includes(pickupLocation.toLowerCase())
+      )
+      setLocationSuggestions(filtered)
+      setShowLocationDropdown(true)
+    } else {
+      setLocationSuggestions([])
+      setShowLocationDropdown(false)
+    }
+  }, [pickupLocation])
 
   // Toggle category selection
   const toggleCategory = (category) => {
@@ -77,48 +95,34 @@ const Cars = () => {
     )
   }
 
-  // Handle date updates
-  const handleDateUpdate = () => {
-    if (editablePickupDate && editableReturnDate) {
-      // Update URL with new dates
-      searchParams.set('pickupDate', editablePickupDate)
-      searchParams.set('returnDate', editableReturnDate)
-      setSearchParams(searchParams)
-      
-      // Refresh available cars with new dates
-      if (pickupLocation || editableLocation) {
-        searchCarAvailability()
-      }
+  // NEW: Handle search with built-in filters
+  const handleSearch = () => {
+    if (!pickupLocation && !pickupDate && !returnDate && !input.trim()) {
+      toast.error('Please fill at least one field to search')
+      return
     }
-    setIsEditingDates(false)
-  }
 
-  // NEW: Handle location update
-  const handleLocationUpdate = () => {
-    if (editableLocation.trim()) {
-      // Update URL with new location
-      searchParams.set('pickupLocation', editableLocation.trim())
-      setSearchParams(searchParams)
-      
-      // Refresh available cars with new location
-      if (pickupDate || editablePickupDate) {
-        searchCarAvailability()
-      }
+    // Update URL with all parameters
+    const params = new URLSearchParams()
+    if (pickupLocation) params.set('pickupLocation', pickupLocation)
+    if (pickupDate) params.set('pickupDate', pickupDate)
+    if (returnDate) params.set('returnDate', returnDate)
+    if (input.trim()) params.set('search', input.trim())
+    
+    setSearchParams(params)
+
+    // Search based on what's available
+    if (pickupLocation && pickupDate && returnDate) {
+      searchCarAvailability()
+    } else {
+      applyFilter()
     }
-    setIsEditingLocation(false)
   }
 
-  // Cancel date editing
-  const cancelDateEditing = () => {
-    setEditablePickupDate(pickupDate || '')
-    setEditableReturnDate(returnDate || '')
-    setIsEditingDates(false)
-  }
-
-  // NEW: Cancel location editing
-  const cancelLocationEditing = () => {
-    setEditableLocation(pickupLocation || '')
-    setIsEditingLocation(false)
+  // NEW: Handle location selection from dropdown
+  const handleLocationSelect = (location) => {
+    setPickupLocation(location)
+    setShowLocationDropdown(false)
   }
 
   const applyFilter = () => {
@@ -154,6 +158,7 @@ const Cars = () => {
     }
 
     setFilteredCars(filtered)
+    setIsLoading(false)
   }
 
   const searchCarAvailability = async () => {
@@ -161,9 +166,9 @@ const Cars = () => {
     try {
       const { data } = await axios.post('/api/bookings/check-availability',
         { 
-          location: editableLocation || pickupLocation, 
-          pickupDate: editablePickupDate || pickupDate, 
-          returnDate: editableReturnDate || returnDate 
+          location: pickupLocation, 
+          pickupDate: pickupDate, 
+          returnDate: returnDate 
         })
       if (data.success) {
         setFilteredCars(data.availableCars)
@@ -185,48 +190,55 @@ const Cars = () => {
   const handleSearchChange = (e) => {
     const value = e.target.value
     setInput(value)
-    
-    // Update URL with search param
-    if (value.trim()) {
-      searchParams.set('search', value.trim())
-    } else {
-      searchParams.delete('search')
-    }
-    setSearchParams(searchParams)
   }
 
   // Clear all filters
   const clearFilters = () => {
     setInput('')
+    setPickupLocation('')
+    setPickupDate('')
+    setReturnDate('')
     setSelectedCategories([])
     setSelectedFuelTypes([])
     setIsEditingDates(false)
     setIsEditingLocation(false)
+    setShowLocationDropdown(false)
+    
+    // Clear URL parameters
     searchParams.delete('search')
-    setSearchParams(searchParams)
-  }
-
-  // Clear date and location filters only
-  const clearDateLocationFilters = () => {
+    searchParams.delete('pickupLocation')
     searchParams.delete('pickupDate')
     searchParams.delete('returnDate')
-    searchParams.delete('pickupLocation')
     setSearchParams(searchParams)
-    setEditablePickupDate('')
-    setEditableReturnDate('')
-    setEditableLocation('')
+    
+    // Show all cars
+    setFilteredCars(cars)
+  }
+
+  // Clear only date and location filters
+  const clearDateLocationFilters = () => {
+    setPickupLocation('')
+    setPickupDate('')
+    setReturnDate('')
     setIsEditingDates(false)
     setIsEditingLocation(false)
+    setShowLocationDropdown(false)
     
-    // Refresh the page to show all cars
-    window.location.reload()
+    searchParams.delete('pickupLocation')
+    searchParams.delete('pickupDate')
+    searchParams.delete('returnDate')
+    setSearchParams(searchParams)
+    
+    applyFilter()
   }
 
   useEffect(() => {
-    if (isSearchData) {
+    if (urlPickupLocation && urlPickupDate && urlReturnDate) {
       searchCarAvailability()
     } else {
-      setTimeout(() => setIsLoading(false), 500)
+      setTimeout(() => {
+        applyFilter()
+      }, 500)
     }
   }, [])
 
@@ -236,19 +248,13 @@ const Cars = () => {
     }
   }, [input, cars, selectedCategories, selectedFuelTypes])
 
-  // Update input when URL search param changes
+  // Update states when URL params change
   useEffect(() => {
-    if (urlSearch) {
-      setInput(urlSearch)
-    }
-  }, [urlSearch])
-
-  // Update editable dates and location when URL params change
-  useEffect(() => {
-    if (pickupDate) setEditablePickupDate(pickupDate)
-    if (returnDate) setEditableReturnDate(returnDate)
-    if (pickupLocation) setEditableLocation(pickupLocation)
-  }, [pickupDate, returnDate, pickupLocation])
+    if (urlPickupLocation) setPickupLocation(urlPickupLocation)
+    if (urlPickupDate) setPickupDate(urlPickupDate)
+    if (urlReturnDate) setReturnDate(urlReturnDate)
+    if (urlSearch) setInput(urlSearch)
+  }, [urlPickupLocation, urlPickupDate, urlReturnDate, urlSearch])
 
   // Animation variants
   const containerVariants = {
@@ -322,11 +328,82 @@ const Cars = () => {
           />
         </motion.div>
 
-        {/* Search Bar */}
+        {/* NEW: Built-in Search Form */}
         <motion.div 
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
+          className='flex flex-col md:flex-row items-center gap-4 mt-6 max-w-4xl w-full'
+        >
+          {/* Location Input */}
+          <div className="flex flex-col items-start gap-1.5 w-full md:w-auto relative">
+            <label className="text-xs md:text-sm font-medium text-gray-700">Pickup Location</label>
+            <div className="relative">
+              <input
+                type="text"
+                value={pickupLocation}
+                onChange={(e) => setPickupLocation(e.target.value)}
+                onFocus={() => setShowLocationDropdown(true)}
+                className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full md:w-48 placeholder:text-gray-500 focus:outline-primary focus:border-primary"
+                placeholder="Enter location"
+              />
+              {showLocationDropdown && locationSuggestions.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                  {locationSuggestions.map((location) => (
+                    <div
+                      key={location}
+                      onClick={() => handleLocationSelect(location)}
+                      className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
+                    >
+                      {location}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Pickup Date */}
+          <div className="flex flex-col items-start gap-1.5 w-full md:w-auto">
+            <label className="text-xs md:text-sm font-medium text-gray-700">Pick-up Date</label>
+            <input 
+              value={pickupDate} 
+              onChange={(e) => setPickupDate(e.target.value)}
+              type="date"
+              min={new Date().toISOString().split('T')[0]}
+              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${pickupDate ? 'text-gray-800' : 'text-gray-500'}`}
+            />
+          </div>
+
+          {/* Return Date */}
+          <div className="flex flex-col items-start gap-1.5 w-full md:w-auto">
+            <label className="text-xs md:text-sm font-medium text-gray-700">Return Date</label>
+            <input 
+              value={returnDate} 
+              onChange={(e) => setReturnDate(e.target.value)}
+              type="date"
+              min={pickupDate || new Date().toISOString().split('T')[0]}
+              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${returnDate ? 'text-gray-800' : 'text-gray-500'}`}
+            />
+          </div>
+
+          {/* Search Button */}
+          <motion.button 
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }} 
+            onClick={handleSearch}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 mt-6 md:mt-0 md:px-8 md:py-3 bg-primary hover:bg-primary-dull text-white rounded-full cursor-pointer font-medium shadow-md w-full md:w-auto text-sm"
+          >
+            <img src={assets.search_icon} alt="search" className="brightness-200 w-4 h-4" />
+            Search Cars
+          </motion.button>
+        </motion.div>
+
+        {/* Additional Search Bar for Text Search */}
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
           whileHover={{ scale: 1.02 }}
           className={`flex items-center bg-white px-4 mt-6 max-w-140 w-full h-12 rounded-full shadow-lg ${
             isScrolled ? 'sticky top-4 z-40 max-w-4xl transition-all duration-300' : ''
@@ -342,9 +419,10 @@ const Cars = () => {
 
           <input 
             onChange={handleSearchChange}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
             value={input} 
             type="text" 
-            placeholder='Search by brand, model, location, year...' 
+            placeholder='Search by brand, model, features...' 
             className='w-full h-full outline-none text-gray-500' 
           />
 
@@ -355,7 +433,7 @@ const Cars = () => {
               exit={{ opacity: 0, scale: 0 }}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={clearFilters}
+              onClick={() => setInput('')}
               className='text-gray-400 hover:text-gray-600 mr-2'
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -439,149 +517,6 @@ const Cars = () => {
                   </div>
                 </div>
 
-                {/* Date & Location Filters */}
-                {(pickupLocation || pickupDate || returnDate) && (
-                  <div className='mt-6 border-t pt-6'>
-                    <div className='flex items-center justify-between mb-4'>
-                      <label className='text-sm font-semibold text-gray-700'>
-                        Date & Location Filters
-                      </label>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={clearDateLocationFilters}
-                        className='text-xs text-red-600 hover:text-red-800 px-3 py-1 bg-red-50 rounded-lg'
-                      >
-                        Clear Dates & Location
-                      </motion.button>
-                    </div>
-                    
-                    <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4'>
-                      {/* Pickup Location - Editable */}
-                      <div className='flex flex-col'>
-                        <label className='text-xs text-gray-500 mb-1'>Pickup Location</label>
-                        {isEditingLocation ? (
-                          <div className='flex flex-col gap-2'>
-                            <input
-                              type="text"
-                              value={editableLocation}
-                              onChange={(e) => setEditableLocation(e.target.value)}
-                              placeholder="Enter location"
-                              className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
-                              autoFocus
-                            />
-                            <div className='flex gap-2'>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={handleLocationUpdate}
-                                disabled={!editableLocation.trim()}
-                                className={`px-2 py-1 rounded text-xs font-medium flex-1 ${
-                                  editableLocation.trim()
-                                    ? 'bg-primary text-white hover:bg-primary-dull'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                Update
-                              </motion.button>
-                              <motion.button
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={cancelLocationEditing}
-                                className='px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-medium flex-1 hover:bg-gray-300'
-                              >
-                                Cancel
-                              </motion.button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div 
-                            onClick={() => setIsEditingLocation(true)}
-                            className='px-3 py-2 bg-purple-50 text-purple-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-purple-100 transition-colors flex items-center justify-between'
-                          >
-                            <span>{pickupLocation}</span>
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Pickup Date */}
-                      <div className='flex flex-col'>
-                        <label className='text-xs text-gray-500 mb-1'>Pick-up Date</label>
-                        {isEditingDates ? (
-                          <input
-                            type="date"
-                            value={editablePickupDate}
-                            onChange={(e) => setEditablePickupDate(e.target.value)}
-                            min={new Date().toISOString().split('T')[0]}
-                            className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
-                          />
-                        ) : (
-                          <div 
-                            onClick={() => setIsEditingDates(true)}
-                            className='px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-green-100 transition-colors'
-                          >
-                            {formatDate(pickupDate)}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Return Date */}
-                      <div className='flex flex-col'>
-                        <label className='text-xs text-gray-500 mb-1'>Return Date</label>
-                        {isEditingDates ? (
-                          <input
-                            type="date"
-                            value={editableReturnDate}
-                            onChange={(e) => setEditableReturnDate(e.target.value)}
-                            min={editablePickupDate || new Date().toISOString().split('T')[0]}
-                            className='px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-primary focus:border-primary'
-                          />
-                        ) : (
-                          <div 
-                            onClick={() => setIsEditingDates(true)}
-                            className='px-3 py-2 bg-green-50 text-green-700 rounded-lg text-sm font-medium cursor-pointer hover:bg-green-100 transition-colors'
-                          >
-                            {formatDate(returnDate)}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Date Edit Actions */}
-                      {isEditingDates && (
-                        <div className='flex flex-col justify-end gap-2'>
-                          <label className='text-xs text-gray-500 mb-1 invisible'>Actions</label>
-                          <div className='flex gap-2'>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={handleDateUpdate}
-                              disabled={!editablePickupDate || !editableReturnDate}
-                              className={`px-3 py-2 rounded-lg text-sm font-medium flex-1 ${
-                                editablePickupDate && editableReturnDate
-                                  ? 'bg-primary text-white hover:bg-primary-dull'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              Update
-                            </motion.button>
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={cancelDateEditing}
-                              className='px-3 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium flex-1 hover:bg-gray-300'
-                            >
-                              Cancel
-                            </motion.button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Clear Filters Button */}
                 {hasActiveFilters && (
                   <motion.button
@@ -611,6 +546,7 @@ const Cars = () => {
         >
           <p className='text-gray-500'>
             Showing {filteredCars.length} {filteredCars.length === 1 ? 'Car' : 'Cars'}
+            {pickupLocation && ` in ${pickupLocation}`}
           </p>
           
           {/* Active Filters Display */}
@@ -618,18 +554,12 @@ const Cars = () => {
             <div className='flex items-center gap-2 text-sm flex-wrap'>
               <span className='text-gray-500'>Filters:</span>
               
-              {/* Location Filter - Editable */}
+              {/* Location Filter */}
               {pickupLocation && (
-                <span 
-                  onClick={() => setIsEditingLocation(true)}
-                  className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1 cursor-pointer hover:bg-purple-100 transition-colors'
-                >
+                <span className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1'>
                   📍 {pickupLocation}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      clearDateLocationFilters()
-                    }}
+                    onClick={() => setPickupLocation('')}
                     className='hover:text-purple-800'
                   >
                     ×
@@ -639,15 +569,12 @@ const Cars = () => {
               
               {/* Date Filters */}
               {pickupDate && returnDate && (
-                <span 
-                  onClick={() => setIsEditingDates(true)}
-                  className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1 cursor-pointer hover:bg-green-100 transition-colors'
-                >
+                <span className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
                   📅 {formatDate(pickupDate)} - {formatDate(returnDate)}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      clearDateLocationFilters()
+                    onClick={() => {
+                      setPickupDate('')
+                      setReturnDate('')
                     }}
                     className='hover:text-green-800'
                   >
