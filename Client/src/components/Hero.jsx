@@ -8,7 +8,8 @@ const Hero = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [initialAnimDone, setInitialAnimDone] = useState(false)
-  const [dynamicCities, setDynamicCities] = useState([]) // NEW: State for database cities
+  const [dynamicCities, setDynamicCities] = useState([])
+  const [showError, setShowError] = useState(false) // NEW: Error state
   const dropdownRef = useRef(null)
   const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate, axios } = useAppContext()
   
@@ -81,11 +82,34 @@ const Hero = () => {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    if (!pickupLocation) {
-      alert('Please select a pickup location')
+    
+    // Check if all fields are empty
+    if (!pickupLocation && !pickupDate && !returnDate) {
+      setShowError(true)
       return
     }
-    navigate('/cars?pickupLocation=' + pickupLocation + '&pickupDate=' + pickupDate + '&returnDate=' + returnDate)
+    
+    // Reset error state if at least one field is filled
+    setShowError(false)
+    
+    // Build query parameters only for filled fields
+    const params = new URLSearchParams()
+    
+    if (pickupLocation) params.append('pickupLocation', pickupLocation)
+    if (pickupDate) params.append('pickupDate', pickupDate)
+    if (returnDate) params.append('returnDate', returnDate)
+    
+    navigate('/cars?' + params.toString())
+  }
+
+  // NEW: Helper function to determine if a field should show error styling
+  const getFieldErrorClass = (fieldValue) => {
+    return showError && !fieldValue ? 'border-red-500 focus:border-red-500' : ''
+  }
+
+  // NEW: Helper function to determine label error styling
+  const getLabelErrorClass = (fieldValue) => {
+    return showError && !fieldValue ? 'text-red-600' : 'text-gray-700'
   }
 
   return (
@@ -114,18 +138,22 @@ const Hero = () => {
          <div className="flex flex-col md:flex-row items-start md:items-center justify-center gap-4 md:gap-6 lg:gap-10 w-full md:pl-4">
           {/* Pickup Location */}
           <div className="flex flex-col items-start gap-1.5 md:gap-2 w-full md:w-auto relative" ref={dropdownRef}>
-            <label className="text-xs md:text-sm font-medium text-gray-700">Pickup Location</label>
+            <label className={`text-xs md:text-sm font-medium flex items-center gap-1 ${getLabelErrorClass(pickupLocation)}`}>
+              Pickup Location
+              {showError && !pickupLocation && <span className="text-red-500">•</span>}
+            </label>
             <input
               type="text"
-              required
               value={searchTerm || pickupLocation}
               onChange={(e) => {
                 setSearchTerm(e.target.value)
                 setPickupLocation('')
                 setIsDropdownOpen(true)
+                // Reset error when user starts typing
+                if (showError) setShowError(false)
               }}
               onFocus={() => setIsDropdownOpen(true)}
-              className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full md:w-48 placeholder:text-gray-500 focus:outline-primary focus:border-primary"
+              className={`text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full md:w-48 placeholder:text-gray-500 focus:outline-primary focus:border-primary ${getFieldErrorClass(pickupLocation)}`}
               placeholder="Select or type"
             />
             {isDropdownOpen && filteredCities && (
@@ -138,6 +166,8 @@ const Hero = () => {
                         setPickupLocation(city)
                         setSearchTerm('')
                         setIsDropdownOpen(false)
+                        // Reset error when user selects a location
+                        if (showError) setShowError(false)
                       }}
                       className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
                     >
@@ -153,33 +183,41 @@ const Hero = () => {
 
           {/* Pickup Date */}
           <div className="flex flex-col items-start gap-1.5 md:gap-2 w-full md:w-auto">
-            <label htmlFor="pickup-date" className="text-xs md:text-sm font-medium text-gray-700">
+            <label htmlFor="pickup-date" className={`text-xs md:text-sm font-medium flex items-center gap-1 ${getLabelErrorClass(pickupDate)}`}>
               Pick-up Date
+              {showError && !pickupDate && <span className="text-red-500">•</span>}
             </label>
             <input 
               value={pickupDate} 
-              onChange={(e) => setPickupDate(e.target.value)}
+              onChange={(e) => {
+                setPickupDate(e.target.value)
+                // Reset error when user selects a date
+                if (showError) setShowError(false)
+              }}
               type="date"
               id="pickup-date"
               min={new Date().toISOString().split('T')[0]}
-              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${pickupDate ? 'text-gray-800' : 'text-gray-500'}`}
-              required
+              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${pickupDate ? 'text-gray-800' : 'text-gray-500'} ${getFieldErrorClass(pickupDate)}`}
             />
           </div>
 
           {/* Return Date */}
           <div className="flex flex-col items-start gap-1.5 md:gap-2 w-full md:w-auto">
-            <label htmlFor="return-date" className="text-xs md:text-sm font-medium text-gray-700">
+            <label htmlFor="return-date" className={`text-xs md:text-sm font-medium flex items-center gap-1 ${getLabelErrorClass(returnDate)}`}>
               Return Date
+              {showError && !returnDate && <span className="text-red-500">•</span>}
             </label>
             <input 
               value={returnDate} 
-              onChange={(e) => setReturnDate(e.target.value)}
+              onChange={(e) => {
+                setReturnDate(e.target.value)
+                // Reset error when user selects a date
+                if (showError) setShowError(false)
+              }}
               type="date"
               id="return-date"
               min={pickupDate || new Date().toISOString().split('T')[0]}
-              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${returnDate ? 'text-gray-800' : 'text-gray-500'}`}
-              required
+              className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full md:w-auto focus:outline-primary focus:border-primary ${returnDate ? 'text-gray-800' : 'text-gray-500'} ${getFieldErrorClass(returnDate)}`}
             />
           </div>
 
@@ -194,6 +232,20 @@ const Hero = () => {
           </motion.button>
         </div>
       </motion.form>
+
+      {/* Error Message */}
+      {showError && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4 text-red-600 text-sm font-medium flex items-center gap-2"
+        >
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+          </svg>
+          Please fill at least one field to search
+        </motion.div>
+      )}
 
       {/* Animated Car with scroll behavior and rotating wheels */}
       <motion.div
