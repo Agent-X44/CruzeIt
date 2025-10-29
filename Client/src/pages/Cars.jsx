@@ -129,11 +129,10 @@ const Cars = () => {
   const applyFilter = () => {
     let filtered = cars.slice()
 
-    // Apply search filter - includes location
+    // Apply search filter - includes location when user types a search
     if (input.trim() !== '') {
+      const searchTerm = input.toLowerCase()
       filtered = filtered.filter((car) => {
-        const searchTerm = input.toLowerCase()
-        
         return (
           car.brand?.toLowerCase().includes(searchTerm) ||
           car.model?.toLowerCase().includes(searchTerm) ||
@@ -144,6 +143,19 @@ const Cars = () => {
           car.pickupLocation?.toLowerCase().includes(searchTerm) ||
           car.year?.toString().includes(searchTerm) ||
           `${car.brand} ${car.model}`.toLowerCase().includes(searchTerm)
+        )
+      })
+    }
+
+    // If the user entered a pickup location but didn't type a search term,
+    // filter by location as a standalone filter (this is why selecting a
+    // pickup location previously didn't always update results).
+    if (pickupLocation && input.trim() === '') {
+      const loc = pickupLocation.toLowerCase()
+      filtered = filtered.filter((car) => {
+        return (
+          car.location?.toLowerCase().includes(loc) ||
+          car.pickupLocation?.toLowerCase().includes(loc)
         )
       })
     }
@@ -203,12 +215,10 @@ const Cars = () => {
     setSelectedFuelTypes([])
     setShowLocationDropdown(false)
     
-    // Clear URL parameters
-    searchParams.delete('search')
-    searchParams.delete('pickupLocation')
-    searchParams.delete('pickupDate')
-    searchParams.delete('returnDate')
-    setSearchParams(searchParams)
+    // Clear URL parameters using a fresh URLSearchParams to avoid mutating
+    // the object returned by the hook (which can prevent React Router from
+    // detecting changes in some cases).
+    setSearchParams(new URLSearchParams())
     
     // Show all cars
     setFilteredCars(cars)
@@ -222,11 +232,15 @@ const Cars = () => {
     setReturnDate('')
     setShowLocationDropdown(false)
     
-    searchParams.delete('pickupLocation')
-    searchParams.delete('pickupDate')
-    searchParams.delete('returnDate')
-    setSearchParams(searchParams)
-    
+    // Remove only the date/location params (create a new params instance to
+    // avoid mutating the hook's searchParams directly).
+    const newParams = new URLSearchParams(searchParams)
+    newParams.delete('pickupLocation')
+    newParams.delete('pickupDate')
+    newParams.delete('returnDate')
+    setSearchParams(newParams)
+
+    // Re-apply filters so other filters (search/category/fuel) remain active.
     applyFilter()
   }
 
@@ -244,7 +258,7 @@ const Cars = () => {
     if (cars.length > 0 && !isSearchData) {
       applyFilter()
     }
-  }, [input, cars, selectedCategories, selectedFuelTypes])
+  }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate])
 
   // Update states when URL params change
   useEffect(() => {
