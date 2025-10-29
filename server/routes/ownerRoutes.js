@@ -1,18 +1,31 @@
 import express from 'express';
 import { protect } from '../middleware/auth.js';
-import { addCar, changeRoleToOwner, deleteCar, getDashboardData, getOwnerCars, toggleCarAvailability, updateUserImage } from '../controllers/ownerController.js';
+import { 
+    addCar, 
+    changeRoleToOwner, 
+    deleteCar, 
+    getDashboardData, 
+    getOwnerCars, 
+    toggleCarAvailability, 
+    updateUserImage,
+    updateCar,
+    getAllLocations
+} from '../controllers/ownerController.js';
 import upload from '../middleware/multer.js';
-import { updateCar } from "../controllers/ownerController.js";
 
 const ownerRouter = express.Router();
 
-ownerRouter.post("/change-role",protect, changeRoleToOwner)
+ownerRouter.post("/change-role", protect, changeRoleToOwner)
 ownerRouter.post("/add-car", protect, upload.single("image"), addCar)
 ownerRouter.get("/cars", protect, getOwnerCars)
 ownerRouter.post("/toggle-car", protect, toggleCarAvailability)
-ownerRouter.post("/delete-car", protect,deleteCar)
+ownerRouter.post("/delete-car", protect, deleteCar)
 
 ownerRouter.get("/dashboard", protect, getDashboardData)
-ownerRouter.post("/update-image", protect, upload.single("image"),updateUserImage)
+ownerRouter.post("/update-image", protect, upload.single("image"), updateUserImage)
 ownerRouter.post('/update-car', protect, updateCar)
+
+//Add endpoint to get all locations
+ownerRouter.get('/locations', getAllLocations)
+
 export default ownerRouter;
