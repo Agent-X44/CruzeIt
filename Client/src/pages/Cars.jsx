@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Title from '../components/Title'
-import { assets, dummyCarData } from '../assets/assets'
+import { assets, dummyCarData, cityList } from '../assets/assets'
 import CarCards from '../components/CarCards'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
@@ -43,7 +43,27 @@ const Cars = () => {
   const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
 
   // Available locations (you can fetch this from your API)
-  const availableLocations = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Philadelphia', 'San Antonio', 'San Diego', 'Dallas', 'San Jose']
+  // Start with a static list, then merge with dynamic cities fetched from the server
+  const [dynamicCities, setDynamicCities] = useState([])
+
+  // Fetch dynamic locations from the server and store them
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data } = await axios.get('/api/owner/locations')
+        if (data.success && data.locations) {
+          setDynamicCities(data.locations)
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error)
+      }
+    }
+
+    fetchLocations()
+  }, [axios])
+
+  // Merge cityList from assets with dynamic cities from database and sort
+  const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
 
   // Scroll handler for collapsible filters
   useEffect(() => {
