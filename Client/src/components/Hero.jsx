@@ -8,8 +8,27 @@ const Hero = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [initialAnimDone, setInitialAnimDone] = useState(false)
+  const [dynamicCities, setDynamicCities] = useState([]) // NEW: State for database cities
   const dropdownRef = useRef(null)
-  const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate } = useAppContext()
+  const { pickupDate, setPickupDate, returnDate, setReturnDate, navigate, axios } = useAppContext()
+  
+  // NEW: Fetch locations from database and merge with assets
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data } = await axios.get('/api/owner/locations')
+        if (data.success && data.locations) {
+          setDynamicCities(data.locations)
+        }
+      } catch (error) {
+        console.log('Error fetching locations:', error)
+      }
+    }
+    fetchLocations()
+  }, [axios])
+
+  // NEW: Merge cityList from assets with dynamic cities from database
+  const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -22,8 +41,8 @@ const Hero = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
   
-  // Filter cities based on search
-  const filteredCities = (cityList || []).filter(city =>
+  // Filter cities based on search - now uses merged list
+  const filteredCities = (allCities || []).filter(city =>
     city.toLowerCase().includes(searchTerm.toLowerCase())
   )
   
@@ -37,7 +56,7 @@ const Hero = () => {
   // Force re-render on scroll to fix mouse wheel issue
   useEffect(() => {
     const handleScroll = () => {
-  // This forces the component to respond to scroll events
+      // This forces the component to respond to scroll events
       scrollY.set(window.scrollY)
     }
     window.addEventListener('scroll', handleScroll, { passive: true })
