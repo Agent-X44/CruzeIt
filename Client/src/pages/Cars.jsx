@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import Title from '../components/Title'
 import { assets, dummyCarData, cityList } from '../assets/assets'
 import CarCards from '../components/CarCards'
@@ -25,12 +25,16 @@ const Cars = () => {
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   
-  // Built-in location and date states
+  // Built-in location and date states - UPDATED with Hero.jsx dropdown logic
   const [pickupLocation, setPickupLocation] = useState(urlPickupLocation || '')
+  const [locationSearchTerm, setLocationSearchTerm] = useState('') // NEW: Separate search term for dropdown
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false) // NEW: Dropdown state
   const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
   const [returnDate, setReturnDate] = useState(urlReturnDate || '')
-  const [locationSuggestions, setLocationSuggestions] = useState([])
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false)
+  const [dynamicCities, setDynamicCities] = useState([])
+  
+  // NEW: Ref for dropdown click outside
+  const locationDropdownRef = useRef(null)
   
   // Scroll state for collapsible filters
   const [isScrolled, setIsScrolled] = useState(false)
@@ -41,10 +45,6 @@ const Cars = () => {
   // Categories for filtering
   const categories = ['SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
   const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
-
-  // Available locations (you can fetch this from your API)
-  // Start with a static list, then merge with dynamic cities fetched from the server
-  const [dynamicCities, setDynamicCities] = useState([])
 
   // Fetch dynamic locations from the server and store them
   useEffect(() => {
@@ -62,8 +62,13 @@ const Cars = () => {
     fetchLocations()
   }, [axios])
 
-  // Merge cityList from assets with dynamic cities from database and sort
+  // Merge cityList from assets with dynamic cities from database and sort - EXACTLY like Hero.jsx
   const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
+
+  // Filter cities based on search - EXACTLY like Hero.jsx
+  const filteredCities = (allCities || []).filter(city =>
+    city.toLowerCase().includes(locationSearchTerm.toLowerCase())
+  )
 
   // Scroll handler for collapsible filters
   useEffect(() => {
@@ -81,19 +86,16 @@ const Cars = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [showFilters])
 
-  // Filter locations based on input
+  // NEW: Close dropdown when clicking outside - EXACTLY like Hero.jsx
   useEffect(() => {
-    if (pickupLocation.trim()) {
-      const filtered = availableLocations.filter(location =>
-        location.toLowerCase().includes(pickupLocation.toLowerCase())
-      )
-      setLocationSuggestions(filtered)
-      setShowLocationDropdown(true)
-    } else {
-      setLocationSuggestions([])
-      setShowLocationDropdown(false)
+    const handleClickOutside = (event) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target)) {
+        setIsLocationDropdownOpen(false)
+      }
     }
-  }, [pickupLocation])
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Toggle category selection
   const toggleCategory = (category) => {
@@ -140,12 +142,11 @@ const Cars = () => {
     setShowFilters(false)
   }
 
-  // Handle location selection from dropdown
-  const handleLocationSelect = (location) => {
-    // Set the pickup location, clear any text search input, and close dropdown
-    setPickupLocation(location)
-    setInput('')
-    setShowLocationDropdown(false)
+  // NEW: Handle location selection from dropdown - EXACTLY like Hero.jsx
+  const handleLocationSelect = (city) => {
+    setPickupLocation(city)
+    setLocationSearchTerm('')
+    setIsLocationDropdownOpen(false)
   }
 
   const applyFilter = () => {
@@ -170,8 +171,7 @@ const Cars = () => {
     }
 
     // If the user entered a pickup location but didn't type a search term,
-    // filter by location as a standalone filter (this is why selecting a
-    // pickup location previously didn't always update results).
+    // filter by location as a standalone filter
     if (pickupLocation && input.trim() === '') {
       const loc = pickupLocation.toLowerCase()
       filtered = filtered.filter((car) => {
@@ -231,11 +231,12 @@ const Cars = () => {
   const clearFilters = () => {
     setInput('')
     setPickupLocation('')
+    setLocationSearchTerm('')
     setPickupDate('')
     setReturnDate('')
     setSelectedCategories([])
     setSelectedFuelTypes([])
-    setShowLocationDropdown(false)
+    setIsLocationDropdownOpen(false)
     
     // Clear URL parameters using a fresh URLSearchParams to avoid mutating
     // the object returned by the hook (which can prevent React Router from
@@ -250,9 +251,10 @@ const Cars = () => {
   // Clear only date and location filters
   const clearDateLocationFilters = () => {
     setPickupLocation('')
+    setLocationSearchTerm('')
     setPickupDate('')
     setReturnDate('')
-    setShowLocationDropdown(false)
+    setIsLocationDropdownOpen(false)
     
     // Remove only the date/location params (create a new params instance to
     // avoid mutating the hook's searchParams directly).
@@ -434,36 +436,43 @@ const Cars = () => {
                 <div className='mb-6'>
                   <h3 className='text-sm font-semibold text-gray-700 mb-4'>Location & Dates</h3>
                   <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                    {/* Location Input */}
-                    <div className="flex flex-col items-start gap-1.5 relative">
+                    {/* Location Input - UPDATED with Hero.jsx dropdown implementation */}
+                    <div className="flex flex-col items-start gap-1.5 w-full relative" ref={locationDropdownRef}>
                       <label className="text-xs font-medium text-gray-700">Pickup Location</label>
-                      <div className="relative w-full">
-                        <input
-                          type="text"
-                          value={pickupLocation}
-                          onChange={(e) => setPickupLocation(e.target.value)}
-                          onFocus={() => setShowLocationDropdown(true)}
-                          className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full placeholder:text-gray-500 focus:outline-primary focus:border-primary text-sm"
-                          placeholder="Enter location"
-                        />
-                        {showLocationDropdown && (
-                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full md:w-48">
-                            {locationSuggestions.length > 0 ? (
-                              locationSuggestions.map((location) => (
-                                <div
-                                  key={location}
-                                  onClick={() => handleLocationSelect(location)}
-                                  className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
-                                >
-                                  {location}
-                                </div>
-                              ))
-                            ) : (
-                              <div className="px-3 py-2 text-sm text-gray-700">No locations found</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                      <input
+                        type="text"
+                        value={locationSearchTerm || pickupLocation}
+                        onChange={(e) => {
+                          setLocationSearchTerm(e.target.value)
+                          setPickupLocation('')
+                          setIsLocationDropdownOpen(true)
+                        }}
+                        onFocus={() => setIsLocationDropdownOpen(true)}
+                        className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full placeholder:text-gray-500 focus:outline-primary focus:border-primary text-sm"
+                        placeholder="Select or type"
+                      />
+                      {/* EXACT DROPDOWN FROM Hero.jsx */}
+                      {isLocationDropdownOpen && filteredCities && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full">
+                          {filteredCities.length > 0 ? (
+                            filteredCities.map((city) => (
+                              <div
+                                key={city}
+                                onClick={() => {
+                                  setPickupLocation(city)
+                                  setLocationSearchTerm('')
+                                  setIsLocationDropdownOpen(false)
+                                }}
+                                className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
+                              >
+                                {city}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="px-3 py-2 text-sm text-gray-700">No locations found</div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Pickup Date */}
@@ -571,6 +580,7 @@ const Cars = () => {
         </div>
       </motion.div>
 
+      {/* Rest of the component remains the same */}
       {/* Cars Grid Section */}
       <div className='px-6 md:px-16 lg:px-24 xl:px-32 mt-10 mb-20'>
         <motion.div
