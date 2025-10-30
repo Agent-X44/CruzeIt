@@ -5,7 +5,7 @@ import CarCards from '../components/CarCards'
 import { useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const Cars = () => {
   // Get search params from URL
@@ -355,7 +355,9 @@ const Cars = () => {
     setSelectedFuelTypes([])
     setIsLocationDropdownOpen(false)
     setSearchParams(new URLSearchParams())
-    setFilteredCars(cars.filter(car => car.isAvailable === true))
+    // Reset to show all cars when filters are cleared
+    setFilteredCars(Array.isArray(cars) ? [...cars] : [])
+    setIsLoading(false)
     setShowFilters(false)
   }
 
@@ -389,9 +391,9 @@ const Cars = () => {
 
   // Apply filters when dependencies change
   useEffect(() => {
-    if (cars.length > 0 && bookings.length > 0) {
-      applyFilter()
-    }
+    // Re-apply filters whenever filter inputs or source data change.
+    // Do not gate on bookings length; availability checks will return true when no bookings exist.
+    applyFilter()
   }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate, bookings])
 
   // Sync state with URL params
