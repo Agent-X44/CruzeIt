@@ -1,17 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react'
 import Title from '../components/Title'
-import { assets, dummyCarData, cityList } from '../assets/assets'
+import { assets, cityList } from '../assets/assets'
 import CarCards from '../components/CarCards'
-import { useSearchParams, useNavigate } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
-import { motion, AnimatePresence } from 'framer-motion'
-import Loader from '../components/Loader'
+import { motion, AnimatePresence } from 'motion/react'
 
 const Cars = () => {
   // Get search params from URL
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
   
   const urlPickupLocation = searchParams.get('pickupLocation')
   const urlPickupDate = searchParams.get('pickupDate')
@@ -20,121 +18,107 @@ const Cars = () => {
 
   const { cars, axios } = useAppContext()
 
+  // State management
   const [input, setInput] = useState(urlSearch || '')
   const [isLoading, setIsLoading] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState([])
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
-  
-  // Built-in location and date states
   const [pickupLocation, setPickupLocation] = useState(urlPickupLocation || '')
   const [locationSearchTerm, setLocationSearchTerm] = useState('')
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
   const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
   const [returnDate, setReturnDate] = useState(urlReturnDate || '')
   const [dynamicCities, setDynamicCities] = useState([])
-  // NEW: State to store existing bookings
   const [bookings, setBookings] = useState([])
-  
-  // Ref for dropdown click outside
-  const locationDropdownRef = useRef(null)
-  
-  // Scroll state for collapsible filters
   const [isScrolled, setIsScrolled] = useState(false)
 
-  const isSearchData = pickupLocation && pickupDate && returnDate
+  // Refs
+  const locationDropdownRef = useRef(null)
+
+  // Filtered cars state
   const [filteredCars, setFilteredCars] = useState([])
 
-  // Categories for filtering
+  // Constants
   const categories = ['SUV', 'Sedan', 'Hatchback', 'Sports', 'Luxury', 'Electric']
   const fuelTypes = ['Petrol', 'Diesel', 'Electric', 'Hybrid']
 
-  // Fetch dynamic locations from the server and store them
+  // Fetch data on component mount
   useEffect(() => {
-    const fetchLocations = async () => {
-      try {
-        const { data } = await axios.get('/api/owner/locations')
-        if (data.success && data.locations) {
-          setDynamicCities(data.locations)
-        }
-      } catch (error) {
-        console.error('Error fetching locations:', error)
-      }
-    }
-
     fetchLocations()
-  }, [axios])
-
-  // NEW: Fetch existing bookings to check availability
-  useEffect(() => {
-    const fetchBookings = async () => {
-      try {
-        const { data } = await axios.get('/api/bookings')
-        if (data.success && data.bookings) {
-          setBookings(data.bookings)
-        }
-      } catch (error) {
-        console.error('Error fetching bookings:', error)
-      }
-    }
-
     fetchBookings()
   }, [axios])
 
-  // Merge cityList from assets with dynamic cities from database and sort
-  const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
+  // Fetch locations from API
+  const fetchLocations = async () => {
+    try {
+      const { data } = await axios.get('/api/owner/locations')
+      if (data.success && data.locations) {
+        setDynamicCities(data.locations)
+      }
+    } catch (error) {
+      console.error('Error fetching locations:', error)
+    }
+  }
 
-  // Filter cities based on search
-  const filteredCities = (allCities || []).filter(city =>
+  // Fetch bookings from API
+  const fetchBookings = async () => {
+    try {
+      const { data } = await axios.get('/api/bookings')
+      if (data.success && data.bookings) {
+        setBookings(data.bookings)
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error)
+    }
+  }
+
+  // Merge and filter cities
+  const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
+  const filteredCities = allCities.filter(city =>
     city.toLowerCase().includes(locationSearchTerm.toLowerCase())
   )
 
-  // NEW: Check if a car is available for the selected dates
-  const isCarAvailableForDates = (carId, selectedPickupDate, selectedReturnDate) => {
-    if (!selectedPickupDate && !selectedReturnDate) return true
-    
-    const selectedPickup = selectedPickupDate ? new Date(selectedPickupDate) : null
-    const selectedReturn = selectedReturnDate ? new Date(selectedReturnDate) : null
+  // Check car availability for selected dates
+  const isCarAvailableForDates = (carId, selectedPickup, selectedReturn) => {
+    if (!selectedPickup && !selectedReturn) return true
 
-    // Find all bookings for this car
+    const pickup = selectedPickup ? new Date(selectedPickup) : null
+    const returnDate = selectedReturn ? new Date(selectedReturn) : null
+
+    // Find bookings for this car
     const carBookings = bookings.filter(booking => 
       booking.car && booking.car.$oid === carId
     )
 
-    // Check if any booking conflicts with selected dates
-    const hasConflict = carBookings.some(booking => {
+    // Check for date conflicts
+    return !carBookings.some(booking => {
       const bookingPickup = new Date(booking.pickupDate.$date.$numberLong)
       const bookingReturn = new Date(booking.returnDate.$date.$numberLong)
 
-      // Check for date overlap
-      if (selectedPickup && selectedReturn) {
-        // Conflict if selected dates overlap with booking dates
+      if (pickup && returnDate) {
+        // Check if selected dates overlap with booking dates
         return (
-          (selectedPickup >= bookingPickup && selectedPickup <= bookingReturn) ||
-          (selectedReturn >= bookingPickup && selectedReturn <= bookingReturn) ||
-          (selectedPickup <= bookingPickup && selectedReturn >= bookingReturn)
+          (pickup >= bookingPickup && pickup <= bookingReturn) ||
+          (returnDate >= bookingPickup && returnDate <= bookingReturn) ||
+          (pickup <= bookingPickup && returnDate >= bookingReturn)
         )
-      } else if (selectedPickup) {
-        // Only pickup date selected - conflict if it falls within any booking
-        return selectedPickup >= bookingPickup && selectedPickup <= bookingReturn
-      } else if (selectedReturn) {
-        // Only return date selected - conflict if it falls within any booking
-        return selectedReturn >= bookingPickup && selectedReturn <= bookingReturn
+      } else if (pickup) {
+        return pickup >= bookingPickup && pickup <= bookingReturn
+      } else if (returnDate) {
+        return returnDate >= bookingPickup && returnDate <= bookingReturn
       }
 
       return false
     })
-
-    return !hasConflict
   }
 
-  // Scroll handler for collapsible filters
+  // Scroll handler
   useEffect(() => {
     const handleScroll = () => {
       const scrollTop = window.scrollY || document.documentElement.scrollTop
       setIsScrolled(scrollTop > 100)
       
-      // Auto-collapse filters when scrolling down
       if (scrollTop > 200 && showFilters) {
         setShowFilters(false)
       }
@@ -155,7 +139,7 @@ const Cars = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Toggle category selection
+  // Filter toggles
   const toggleCategory = (category) => {
     setSelectedCategories(prev => 
       prev.includes(category) 
@@ -164,7 +148,6 @@ const Cars = () => {
     )
   }
 
-  // Toggle fuel type selection
   const toggleFuelType = (fuelType) => {
     setSelectedFuelTypes(prev => 
       prev.includes(fuelType) 
@@ -173,46 +156,12 @@ const Cars = () => {
     )
   }
 
-  // Handle search with built-in filters
-  const handleSearch = () => {
-    if (!pickupLocation && !pickupDate && !returnDate && !input.trim() && selectedCategories.length === 0 && selectedFuelTypes.length === 0) {
-      toast.error('Please fill at least one field to search')
-      return
-    }
-
-    // Update URL with all parameters
-    const params = new URLSearchParams()
-    if (pickupLocation) params.set('pickupLocation', pickupLocation)
-    if (pickupDate) params.set('pickupDate', pickupDate)
-    if (returnDate) params.set('returnDate', returnDate)
-    if (input.trim()) params.set('search', input.trim())
-    
-    setSearchParams(params)
-
-    // Search based on what's available
-    if (pickupLocation && pickupDate && returnDate) {
-      searchCarAvailability()
-    } else {
-      applyFilter()
-    }
-    
-    // Close filters dropdown after search
-    setShowFilters(false)
-  }
-
-  // Handle location selection from dropdown
-  const handleLocationSelect = (city) => {
-    setPickupLocation(city)
-    setLocationSearchTerm('')
-    setIsLocationDropdownOpen(false)
-  }
-
+  // Main filter function
   const applyFilter = () => {
-  // Start with all cars by default (show all even when filters are off)
-  let filtered = Array.isArray(cars) ? [...cars] : []
+    let filtered = cars.filter(car => car.isAvailable === true)
 
-    // Apply search filter - includes location when user types a search
-    if (input.trim() !== '') {
+    // Text search filter
+    if (input.trim()) {
       const searchTerm = input.toLowerCase()
       filtered = filtered.filter((car) => {
         return (
@@ -229,8 +178,8 @@ const Cars = () => {
       })
     }
 
-    // Apply location filter (standalone - when no search text)
-    if (pickupLocation && input.trim() === '') {
+    // Location filter
+    if (pickupLocation && !input.trim()) {
       const loc = pickupLocation.toLowerCase()
       filtered = filtered.filter((car) => {
         return (
@@ -240,19 +189,19 @@ const Cars = () => {
       })
     }
 
-    // NEW: Apply date filters using booking data
+    // Date filter
     if (pickupDate || returnDate) {
       filtered = filtered.filter((car) => {
         return isCarAvailableForDates(car._id, pickupDate, returnDate)
       })
     }
 
-    // Apply category filter (multiple selection)
+    // Category filter
     if (selectedCategories.length > 0) {
       filtered = filtered.filter((car) => selectedCategories.includes(car.category))
     }
 
-    // Apply fuel type filter (multiple selection)
+    // Fuel type filter
     if (selectedFuelTypes.length > 0) {
       filtered = filtered.filter((car) => selectedFuelTypes.includes(car.fuel_type))
     }
@@ -261,17 +210,17 @@ const Cars = () => {
     setIsLoading(false)
   }
 
+  // Search availability via API
   const searchCarAvailability = async () => {
     setIsLoading(true)
     try {
-      const { data } = await axios.post('/api/bookings/check-availability',
-        { 
-          location: pickupLocation, 
-          pickupDate: pickupDate, 
-          returnDate: returnDate 
-        })
+      const { data } = await axios.post('/api/bookings/check-availability', {
+        location: pickupLocation,
+        pickupDate: pickupDate,
+        returnDate: returnDate
+      })
+      
       if (data.success) {
-        // Filter results to only show available cars
         const availableCars = data.availableCars.filter(car => car.isAvailable === true)
         setFilteredCars(availableCars)
         if (availableCars.length === 0) {
@@ -288,29 +237,57 @@ const Cars = () => {
     }
   }
 
-  // Handle search input change
-  const handleSearchChange = (e) => {
-    const value = e.target.value
-    setInput(value)
+  // Handle search action
+  const handleSearch = () => {
+    if (!pickupLocation && !pickupDate && !returnDate && !input.trim() && 
+        selectedCategories.length === 0 && selectedFuelTypes.length === 0) {
+      toast.error('Please fill at least one field to search')
+      return
+    }
+
+    // Update URL params
+    const params = new URLSearchParams()
+    if (pickupLocation) params.set('pickupLocation', pickupLocation)
+    if (pickupDate) params.set('pickupDate', pickupDate)
+    if (returnDate) params.set('returnDate', returnDate)
+    if (input.trim()) params.set('search', input.trim())
+    setSearchParams(params)
+
+    // Choose search method
+    if (pickupLocation && pickupDate && returnDate) {
+      searchCarAvailability()
+    } else {
+      applyFilter()
+    }
+    
+    setShowFilters(false)
   }
 
-  // Handle date changes
+  // Location selection handler
+  const handleLocationSelect = (city) => {
+    setPickupLocation(city)
+    setLocationSearchTerm('')
+    setIsLocationDropdownOpen(false)
+  }
+
+  // Input handlers
+  const handleSearchChange = (e) => {
+    setInput(e.target.value)
+  }
+
   const handlePickupDateChange = (e) => {
     const newDate = e.target.value
     setPickupDate(newDate)
-    
-    // If return date is before new pickup date, clear return date
     if (returnDate && newDate > returnDate) {
       setReturnDate('')
     }
   }
 
   const handleReturnDateChange = (e) => {
-    const newDate = e.target.value
-    setReturnDate(newDate)
+    setReturnDate(e.target.value)
   }
 
-  // Clear all filters
+  // Clear filters
   const clearFilters = () => {
     setInput('')
     setPickupLocation('')
@@ -320,12 +297,8 @@ const Cars = () => {
     setSelectedCategories([])
     setSelectedFuelTypes([])
     setIsLocationDropdownOpen(false)
-    
-    // Clear URL parameters
     setSearchParams(new URLSearchParams())
-    
-  // Show all cars when filters cleared
-  setFilteredCars(Array.isArray(cars) ? [...cars] : [])
+    setFilteredCars(cars.filter(car => car.isAvailable === true))
     setShowFilters(false)
   }
 
@@ -337,17 +310,16 @@ const Cars = () => {
     setReturnDate('')
     setIsLocationDropdownOpen(false)
     
-    // Remove only the date/location params
     const newParams = new URLSearchParams(searchParams)
     newParams.delete('pickupLocation')
     newParams.delete('pickupDate')
     newParams.delete('returnDate')
     setSearchParams(newParams)
 
-    // Re-apply filters so other filters (search/category/fuel) remain active.
     applyFilter()
   }
 
+  // Initial load and URL param handling
   useEffect(() => {
     if (urlPickupLocation && urlPickupDate && urlReturnDate) {
       searchCarAvailability()
@@ -358,14 +330,14 @@ const Cars = () => {
     }
   }, [])
 
-  // FIXED: Update the dependency array to include bookings
+  // Apply filters when dependencies change
   useEffect(() => {
     if (cars.length > 0 && bookings.length > 0) {
       applyFilter()
     }
   }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate, bookings])
 
-  // Update states when URL params change
+  // Sync state with URL params
   useEffect(() => {
     if (urlPickupLocation) setPickupLocation(urlPickupLocation)
     if (urlPickupDate) setPickupDate(urlPickupDate)
@@ -373,44 +345,7 @@ const Cars = () => {
     if (urlSearch) setInput(urlSearch)
   }, [urlPickupLocation, urlPickupDate, urlReturnDate, urlSearch])
 
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1
-      }
-    }
-  }
-
-  const cardVariants = {
-    hidden: { 
-      opacity: 0, 
-      y: 50,
-      scale: 0.9
-    },
-    visible: { 
-      opacity: 1, 
-      y: 0,
-      scale: 1,
-      transition: {
-        duration: 0.5,
-        ease: [0.22, 1, 0.36, 1]
-      }
-    },
-    exit: {
-      opacity: 0,
-      scale: 0.9,
-      transition: {
-        duration: 0.3
-      }
-    }
-  }
-
-  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input || pickupLocation || pickupDate || returnDate
-
-  // Format date for display
+  // Helper functions
   const formatDate = (dateString) => {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -419,6 +354,33 @@ const Cars = () => {
       day: 'numeric', 
       year: 'numeric' 
     })
+  }
+
+  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || 
+                          input || pickupLocation || pickupDate || returnDate
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  }
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 50, scale: 0.9 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      scale: 1,
+      transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] }
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.9,
+      transition: { duration: 0.3 }
+    }
   }
 
   return (
@@ -434,16 +396,10 @@ const Cars = () => {
         transition={{ duration: 0.6, ease: 'easeOut' }}
         className='flex flex-col items-center py-20 bg-light max-md:px-4'
       >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-        >
-          <Title 
-            title='Available Cars' 
-            subTitle='Browse our selection of premium vehicles available for your next adventure' 
-          />
-        </motion.div>
+        <Title 
+          title='Available Cars' 
+          subTitle='Browse our selection of premium vehicles available for your next adventure' 
+        />
 
         {/* Search Bar */}
         <motion.div 
@@ -459,7 +415,7 @@ const Cars = () => {
             animate={{ rotate: input ? 360 : 0 }}
             transition={{ duration: 0.5 }}
             src={assets.search_icon} 
-            alt="" 
+            alt="Search" 
             className='w-4.5 h-4.5 mr-2' 
           />
 
@@ -476,7 +432,6 @@ const Cars = () => {
             <motion.button
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0 }}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               onClick={() => setInput('')}
@@ -494,15 +449,11 @@ const Cars = () => {
             onClick={() => setShowFilters(!showFilters)}
             className='cursor-pointer'
           >
-            <img 
-              src={assets.filter_icon} 
-              alt="filter" 
-              className='w-4.5 h-4.5 ml-2' 
-            />
+            <img src={assets.filter_icon} alt="Filter" className='w-4.5 h-4.5 ml-2' />
           </motion.button>
         </motion.div>
 
-        {/* Filters Section with Built-in Location and Dates */}
+        {/* Filters Section */}
         <div className='w-full max-w-140 overflow-hidden'>
           <AnimatePresence>
             {showFilters && (
@@ -513,7 +464,7 @@ const Cars = () => {
                 transition={{ duration: 0.3 }}
                 className='mt-4 bg-white rounded-2xl shadow-lg p-6 w-full'
               >
-                {/* Location and Date Filters */}
+                {/* Location & Dates Section */}
                 <div className='mb-6'>
                   <h3 className='text-sm font-semibold text-gray-700 mb-4'>Location & Dates</h3>
                   <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
@@ -532,17 +483,13 @@ const Cars = () => {
                         className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full placeholder:text-gray-500 focus:outline-primary focus:border-primary text-sm"
                         placeholder="Select or type"
                       />
-                      {isLocationDropdownOpen && filteredCities && (
+                      {isLocationDropdownOpen && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full">
                           {filteredCities.length > 0 ? (
                             filteredCities.map((city) => (
                               <div
                                 key={city}
-                                onClick={() => {
-                                  setPickupLocation(city)
-                                  setLocationSearchTerm('')
-                                  setIsLocationDropdownOpen(false)
-                                }}
+                                onClick={() => handleLocationSelect(city)}
                                 className="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm text-gray-800"
                               >
                                 {city}
@@ -581,8 +528,8 @@ const Cars = () => {
                   </div>
                 </div>
 
+                {/* Category & Fuel Type Filters */}
                 <div className='flex flex-col sm:flex-row gap-6'>
-                  {/* Category Filter */}
                   <div className='flex-1'>
                     <label className='text-sm font-semibold text-gray-700 mb-2 block'>
                       Category {selectedCategories.length > 0 && `(${selectedCategories.length})`}
@@ -606,7 +553,6 @@ const Cars = () => {
                     </div>
                   </div>
 
-                  {/* Fuel Type Filter */}
                   <div className='flex-1'>
                     <label className='text-sm font-semibold text-gray-700 mb-2 block'>
                       Fuel Type {selectedFuelTypes.length > 0 && `(${selectedFuelTypes.length})`}
@@ -631,7 +577,7 @@ const Cars = () => {
                   </div>
                 </div>
 
-                {/* Search and Clear Buttons */}
+                {/* Action Buttons */}
                 <div className='flex flex-col sm:flex-row gap-3 mt-6 pt-6 border-t'>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
@@ -639,7 +585,7 @@ const Cars = () => {
                     onClick={handleSearch}
                     className='flex items-center justify-center gap-2 px-6 py-2.5 bg-primary hover:bg-primary-dull text-white rounded-lg cursor-pointer font-medium shadow-md text-sm flex-1'
                   >
-                    <img src={assets.search_icon} alt="search" className="brightness-200 w-4 h-4" />
+                    <img src={assets.search_icon} alt="Search" className="brightness-200 w-4 h-4" />
                     Apply Filters
                   </motion.button>
 
@@ -660,42 +606,156 @@ const Cars = () => {
         </div>
       </motion.div>
 
-      {/* Results Section */}
-      <div className="max-w-140 mx-auto py-8 px-4">
-        {isLoading ? (
-          <Loader />
-        ) : (
-          <>
-            {filteredCars.length === 0 ? (
-              <div className="text-center py-20">
-                <h3 className="text-lg font-semibold">No cars found</h3>
-                <p className="text-sm text-gray-500 mt-2">Try adjusting your filters.</p>
-              </div>
-            ) : (
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 xl:px-20 max-w-7xl mx-auto"
-              >
-                {filteredCars.map((car) => (
-                  <motion.div key={car._id} variants={cardVariants} className="w-full">
-                    <div className="max-w-sm mx-auto">
-                      <CarCards car={{
-                        ...car,
-                        image: car.image || assets.car_icon,
-                        price_per_day: car.price_per_day ?? car.price ?? 0
-                      }} />
-                    </div>
-                  </motion.div>
+      {/* Cars Grid Section */}
+      <div className='px-6 md:px-16 lg:px-24 xl:px-32 mt-10 mb-20'>
+        {/* Results Header */}
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
+          className='flex justify-between items-center mb-4 max-w-7xl mx-auto flex-wrap gap-4'
+        >
+          <p className='text-gray-500'>
+            Showing {filteredCars.length} {filteredCars.length === 1 ? 'Car' : 'Cars'}
+            {pickupLocation && ` in ${pickupLocation}`}
+          </p>
+          
+          {/* Active Filters */}
+          {hasActiveFilters && (
+            <div className='flex items-center gap-2 text-sm flex-wrap'>
+              <span className='text-gray-500'>Filters:</span>
+              
+              {pickupLocation && (
+                <span className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1'>
+                  📍 {pickupLocation}
+                  <button onClick={() => setPickupLocation('')} className='hover:text-purple-800'>×</button>
+                </span>
+              )}
+              
+              {pickupDate && returnDate && (
+                <span className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
+                  📅 {formatDate(pickupDate)} - {formatDate(returnDate)}
+                  <button onClick={() => { setPickupDate(''); setReturnDate('') }} className='hover:text-green-800'>×</button>
+                </span>
+              )}
+              
+              {input && (
+                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full flex items-center gap-1'>
+                  "{input}"
+                  <button onClick={() => setInput('')} className='hover:text-primary-dull'>×</button>
+                </span>
+              )}
+              
+              {selectedCategories.map(category => (
+                <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
+                  {category}
+                  <button onClick={() => toggleCategory(category)} className='hover:text-blue-800'>×</button>
+                </span>
+              ))}
+              
+              {selectedFuelTypes.map(fuelType => (
+                <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
+                  {fuelType}
+                  <button onClick={() => toggleFuelType(fuelType)} className='hover:text-green-800'>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Loading State */}
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className='flex justify-center'
+            >
+              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 max-w-7xl mx-auto w-full justify-items-center'>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: i * 0.1 }}
+                    className="bg-gray-200 rounded-lg h-80 w-full max-w-sm animate-pulse"
+                  />
                 ))}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              className='flex justify-center'
+            >
+              <div className={`
+                grid gap-8 mt-4 max-w-7xl mx-auto w-full
+                ${filteredCars.length === 1 ? 'grid-cols-1 justify-items-center' : ''}
+                ${filteredCars.length === 2 ? 'grid-cols-1 sm:grid-cols-2 justify-items-center' : ''}
+                ${filteredCars.length >= 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : ''}
+              `}>
+                <AnimatePresence mode="popLayout">
+                  {filteredCars.map((car) => (
+                    <motion.div 
+                      key={car._id}
+                      variants={cardVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit="exit"
+                      layout
+                      whileHover={{ y: -8, scale: 1.03, transition: { duration: 0.3 } }}
+                      className={`
+                        ${filteredCars.length === 1 ? 'w-full max-w-sm' : ''}
+                        ${filteredCars.length === 2 ? 'w-full max-w-sm' : ''}
+                        ${filteredCars.length >= 3 ? 'w-full' : ''}
+                      `}
+                    >
+                      <CarCards car={car} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* No Results State */}
+        <AnimatePresence>
+          {!isLoading && filteredCars.length === 0 && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="text-center py-20"
+            >
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-6xl mb-4"
+              >
+                🚗
               </motion.div>
-            )}
-          </>
-        )}
+              <h3 className="text-2xl font-semibold text-gray-700 mb-2">No cars found</h3>
+              <p className="text-gray-500 mb-4">Try adjusting your search criteria or filters</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={clearFilters}
+                className='px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dull transition-all'
+              >
+                Clear Filters
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   )
 }
 
-export default Cars;
+export default Cars
