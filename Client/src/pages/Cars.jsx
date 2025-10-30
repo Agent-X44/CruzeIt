@@ -208,8 +208,8 @@ const Cars = () => {
   }
 
   const applyFilter = () => {
-    // Start with all available cars
-    let filtered = cars.filter(car => car.isAvailable === true)
+  // Start with all cars by default (show all even when filters are off)
+  let filtered = Array.isArray(cars) ? [...cars] : []
 
     // Apply search filter - includes location when user types a search
     if (input.trim() !== '') {
@@ -324,8 +324,8 @@ const Cars = () => {
     // Clear URL parameters
     setSearchParams(new URLSearchParams())
     
-    // Show all available cars
-    setFilteredCars(cars.filter(car => car.isAvailable === true))
+  // Show all cars when filters cleared
+  setFilteredCars(Array.isArray(cars) ? [...cars] : [])
     setShowFilters(false)
   }
 
