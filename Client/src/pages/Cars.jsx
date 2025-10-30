@@ -676,15 +676,17 @@ const Cars = () => {
                 variants={containerVariants}
                 initial="hidden"
                 animate="visible"
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 xl:px-20 max-w-7xl mx-auto"
               >
                 {filteredCars.map((car) => (
-                  <motion.div key={car._id} variants={cardVariants}>
-                    <CarCards car={{
-                      ...car,
-                      image: car.image || assets.car_icon,
-                      price_per_day: car.price_per_day ?? car.price ?? 0
-                    }} />
+                  <motion.div key={car._id} variants={cardVariants} className="w-full">
+                    <div className="max-w-sm mx-auto">
+                      <CarCards car={{
+                        ...car,
+                        image: car.image || assets.car_icon,
+                        price_per_day: car.price_per_day ?? car.price ?? 0
+                      }} />
+                    </div>
                   </motion.div>
                 ))}
               </motion.div>
