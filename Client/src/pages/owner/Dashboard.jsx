@@ -157,10 +157,10 @@ const Dashboard = () => {
                   
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">
-                      {booking.car.brand} {booking.car.model}
+                      {booking.car?.brand ? `${booking.car.brand} ${booking.car.model || ''}` : 'Unknown vehicle'}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {new Date(booking.createdAt).toLocaleDateString()}
+                      {booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : 'Date N/A'}
                     </p>
                   </div>
 
@@ -255,29 +255,36 @@ const Dashboard = () => {
                 </div>
 
                 {/* Car Details */}
-                <div className="border border-borderColor rounded-xl p-5 bg-gray-50">
-                  <h3 className="text-lg font-medium mb-3">Car Information</h3>
-                  <div className="grid sm:grid-cols-2 gap-3">
-                    <div>
-                      <p className="text-sm text-gray-500">Brand & Model</p>
-                      <p className="font-medium">
-                        {selectedBooking.car.brand} {selectedBooking.car.model}
-                      </p>
+                {selectedBooking.car ? (
+                  <div className="border border-borderColor rounded-xl p-5 bg-gray-50">
+                    <h3 className="text-lg font-medium mb-3">Car Information</h3>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-sm text-gray-500">Brand & Model</p>
+                        <p className="font-medium">
+                          {selectedBooking.car.brand} {selectedBooking.car.model || ''}
+                        </p>
+                      </div>
+                      {selectedBooking.car.year && (
+                        <div>
+                          <p className="text-sm text-gray-500">Year</p>
+                          <p className="font-medium">{selectedBooking.car.year}</p>
+                        </div>
+                      )}
+                      {selectedBooking.car.licensePlate && (
+                        <div>
+                          <p className="text-sm text-gray-500">License Plate</p>
+                          <p className="font-medium">{selectedBooking.car.licensePlate}</p>
+                        </div>
+                      )}
                     </div>
-                    {selectedBooking.car.year && (
-                      <div>
-                        <p className="text-sm text-gray-500">Year</p>
-                        <p className="font-medium">{selectedBooking.car.year}</p>
-                      </div>
-                    )}
-                    {selectedBooking.car.licensePlate && (
-                      <div>
-                        <p className="text-sm text-gray-500">License Plate</p>
-                        <p className="font-medium">{selectedBooking.car.licensePlate}</p>
-                      </div>
-                    )}
                   </div>
-                </div>
+                ) : (
+                  <div className="border border-borderColor rounded-xl p-5 bg-gray-50">
+                    <h3 className="text-lg font-medium mb-3">Car Information</h3>
+                    <p className="text-sm text-gray-500">No car data available for this booking.</p>
+                  </div>
+                )}
 
                 {/* Booking Information */}
                 <div className="border border-borderColor rounded-xl p-5">
@@ -360,7 +367,7 @@ const Dashboard = () => {
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-medium">Total Price</span>
                     <span className="text-2xl font-semibold text-primary">
-                      {currency}{selectedBooking.price.toLocaleString()}
+                      {currency}{(selectedBooking.price ?? 0).toLocaleString()}
                     </span>
                   </div>
                 </div>

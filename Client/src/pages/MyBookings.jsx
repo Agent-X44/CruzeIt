@@ -361,18 +361,18 @@ const MyBookings = () => {
               >
                 {/* Car Image + Info */}
                 <div className="md:col-span-1">
-                  <div className="rounded-2xl overflow-hidden mb-3">
+                    <div className="rounded-2xl overflow-hidden mb-3">
                     <img
-                      src={booking.car.image}
-                      alt={`${booking.car.brand} ${booking.car.model}`}
+                      src={booking.car?.image || assets.car_icon}
+                      alt={`${booking.car?.brand || ''} ${booking.car?.model || ''}`}
                       className="w-full h-auto aspect-video object-cover"
                     />
                   </div>
                   <p className="text-lg font-medium mt-2">
-                    {booking.car.brand} {booking.car.model}
+                    {booking.car?.brand ? `${booking.car.brand} ${booking.car.model || ''}` : 'Unknown vehicle'}
                   </p>
                   <p className="text-gray-500 text-sm">
-                    {booking.car.year} • {booking.car.category} • {booking.car.location}
+                    {booking.car?.year || 'Year N/A'} • {booking.car?.category || 'Category N/A'} • {booking.car?.location || 'Location N/A'}
                   </p>
                 </div>
 
@@ -406,7 +406,7 @@ const MyBookings = () => {
                     <div>
                       <p className="text-gray-500 text-sm">Rental Period</p>
                       <p className="font-medium">
-                        {booking.pickupDate.split('T')[0]} → {booking.returnDate.split('T')[0]}
+                        {(booking.pickupDate || '').split('T')[0] || 'N/A'} → {(booking.returnDate || '').split('T')[0] || 'N/A'}
                       </p>
                     </div>
                   </div>
@@ -419,7 +419,7 @@ const MyBookings = () => {
                     />
                     <div>
                       <p className="text-gray-500 text-sm">Pick-up Location</p>
-                      <p className="font-medium">{booking.car.location}</p>
+                      <p className="font-medium">{booking.car?.location || 'N/A'}</p>
                     </div>
                   </div>
 
@@ -491,10 +491,10 @@ const MyBookings = () => {
                       transition={{ repeat: Infinity, duration: 3 }}
                     >
                       {currency}
-                      {booking.price}
+                      {booking.price ?? 'N/A'}
                     </h1>
                     <p className="text-gray-400 text-xs mt-1">
-                      Booked on {booking.createdAt.split('T')[0]}
+                      Booked on {(booking.createdAt || '').split('T')[0] || 'N/A'}
                     </p>
                   </div>
                 </div>
@@ -515,9 +515,9 @@ const MyBookings = () => {
         onConfirm={handleConfirm}
         actionType={actionType}
         bookingDetails={selectedBooking ? {
-          carName: `${selectedBooking.car?.brand} ${selectedBooking.car?.model}`,
-          pickupDate: selectedBooking.pickupDate.split('T')[0],
-          returnDate: selectedBooking.returnDate.split('T')[0]
+          carName: `${selectedBooking.car?.brand || ''} ${selectedBooking.car?.model || ''}`,
+          pickupDate: (selectedBooking.pickupDate || '').split('T')[0] || 'N/A',
+          returnDate: (selectedBooking.returnDate || '').split('T')[0] || 'N/A'
         } : null}
       />
     </div>

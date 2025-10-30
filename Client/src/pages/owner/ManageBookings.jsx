@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Title from '../../components/owner/Title'
+import { assets } from '../../assets/assets'
 import { useAppContext } from '../../context/AppContext'
 import {toast} from 'react-hot-toast'
 
@@ -285,14 +286,14 @@ const ManageBookings = () => {
                         <td className="p-4">
                           <div className="flex items-center gap-3">
                             <motion.img
-                              src={booking.car.image}
-                              alt=""
+                              src={booking.car?.image || assets.car_icon}
+                              alt={`${booking.car?.brand || ''} ${booking.car?.model || ''}`}
                               className="h-14 w-14 aspect-square rounded-lg object-cover shadow-sm"
                               whileHover={{ scale: 1.1 }}
                               transition={{ duration: 0.2 }}
                             />
                             <p className="font-medium text-gray-700 max-md:hidden">
-                              {booking.car.brand} {booking.car.model}
+                              {booking.car?.brand ? `${booking.car.brand} ${booking.car.model || ''}` : 'Unknown vehicle'}
                             </p>
                           </div>
                         </td>
@@ -300,9 +301,9 @@ const ManageBookings = () => {
                         <td className="p-4 max-md:hidden">
                           <div className="flex flex-col gap-1">
                             <span className="text-xs text-gray-500">From</span>
-                            <span className="font-medium text-gray-700">{booking.pickupDate.split('T')[0]}</span>
+                            <span className="font-medium text-gray-700">{(booking.pickupDate || '').split('T')[0] || 'N/A'}</span>
                             <span className="text-xs text-gray-500">To</span>
-                            <span className="font-medium text-gray-700">{booking.returnDate.split('T')[0]}</span>
+                            <span className="font-medium text-gray-700">{(booking.returnDate || '').split('T')[0] || 'N/A'}</span>
                           </div>
                         </td>
 
@@ -319,7 +320,7 @@ const ManageBookings = () => {
                             className="font-semibold text-gray-800"
                             whileHover={{ scale: 1.05 }}
                           >
-                            {currency}{booking.price.toLocaleString()}
+                            {currency}{(booking.price ?? 0).toLocaleString()}
                           </motion.span>
                         </td>
 
@@ -429,13 +430,13 @@ const ManageBookings = () => {
                   <h3 className="text-lg font-medium mb-3">Car Information</h3>
                   <div className="flex items-start gap-4 mb-4">
                     <img 
-                      src={selectedBooking.car.image} 
-                      alt={`${selectedBooking.car.brand} ${selectedBooking.car.model}`}
+                      src={selectedBooking.car?.image || assets.car_icon} 
+                      alt={`${selectedBooking.car?.brand || ''} ${selectedBooking.car?.model || ''}`}
                       className="w-24 h-24 rounded-lg object-cover shadow-sm"
                     />
                     <div className="flex-1">
                       <p className="text-xl font-semibold text-gray-800">
-                        {selectedBooking.car.brand} {selectedBooking.car.model}
+                        {selectedBooking.car ? `${selectedBooking.car.brand} ${selectedBooking.car.model || ''}` : 'Unknown vehicle'}
                       </p>
                       <div className="grid grid-cols-2 gap-2 mt-2">
                         {selectedBooking.car.year && (
@@ -554,9 +555,9 @@ const ManageBookings = () => {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-primary/20">
-                      <span className="text-lg font-medium">Total Price</span>
+                        <span className="text-lg font-medium">Total Price</span>
                       <span className="text-2xl font-semibold text-primary">
-                        {currency}{selectedBooking.price.toLocaleString()}
+                        {currency}{(selectedBooking.price ?? 0).toLocaleString()}
                       </span>
                     </div>
                   </div>
@@ -650,10 +651,10 @@ const ManageBookings = () => {
                 </p>
               </div>
 
-              <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Car:</span>
-                  <span className="font-semibold">{selectedBooking.car.brand} {selectedBooking.car.model}</span>
+                  <span className="font-semibold">{selectedBooking.car ? `${selectedBooking.car.brand} ${selectedBooking.car.model || ''}` : 'Unknown vehicle'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Customer:</span>
@@ -663,16 +664,16 @@ const ManageBookings = () => {
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Pickup:</span>
-                  <span className="font-semibold">{selectedBooking.pickupDate.split('T')[0]}</span>
+                  <span className="font-semibold">{(selectedBooking.pickupDate || '').split('T')[0] || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-600 text-sm">Return:</span>
-                  <span className="font-semibold">{selectedBooking.returnDate.split('T')[0]}</span>
+                  <span className="font-semibold">{(selectedBooking.returnDate || '').split('T')[0] || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-gray-200">
                   <span className="text-gray-600 text-sm">Total:</span>
-                  <span className="font-bold text-lg text-primary">
-                    {currency}{selectedBooking.price.toLocaleString()}
+                    <span className="font-bold text-lg text-primary">
+                    {currency}{(selectedBooking.price ?? 0).toLocaleString()}
                   </span>
                 </div>
               </div>
