@@ -80,37 +80,94 @@ const Cars = () => {
   )
 
   // Check car availability for selected dates
-  const isCarAvailableForDates = (carId, selectedPickup, selectedReturn) => {
-    if (!selectedPickup && !selectedReturn) return true
+  // Robustly handles different booking shapes returned from the API (strings, objects with _id or $oid, and nested date representations)
+  const isCarAvailableForDates = (carIdRaw, selectedPickupRaw, selectedReturnRaw) => {
+    if (!selectedPickupRaw && !selectedReturnRaw) return true
 
-    const pickup = selectedPickup ? new Date(selectedPickup) : null
-    const returnDate = selectedReturn ? new Date(selectedReturn) : null
+    // Normalize selected dates
+    const selectedPickup = selectedPickupRaw ? new Date(selectedPickupRaw) : null
+    const selectedReturn = selectedReturnRaw ? new Date(selectedReturnRaw) : null
 
-    // Find bookings for this car
-    const carBookings = bookings.filter(booking => 
-      booking.car && booking.car.$oid === carId
-    )
+    // Normalize carId (car._id may be string or object)
+    const normalizeId = (id) => {
+      if (!id) return null
+      if (typeof id === 'string') return id
+      if (typeof id === 'object') {
+        return id.$oid || id._id || (id.toString && id.toString()) || null
+      }
+      return String(id)
+    }
 
-    // Check for date conflicts
-    return !carBookings.some(booking => {
-      const bookingPickup = new Date(booking.pickupDate.$date.$numberLong)
-      const bookingReturn = new Date(booking.returnDate.$date.$numberLong)
+    const carId = normalizeId(carIdRaw)
 
-      if (pickup && returnDate) {
-        // Check if selected dates overlap with booking dates
+    // Helper to parse booking date fields in multiple shapes
+    const parseBookingDate = (dateField) => {
+      if (!dateField) return null
+      // ISO string
+      if (typeof dateField === 'string') return new Date(dateField)
+      // Nested MongoDB extended JSON: { $date: { $numberLong: '...' } }
+      if (dateField.$date && dateField.$date.$numberLong) {
+        return new Date(Number(dateField.$date.$numberLong))
+      }
+      // Sometimes it's { $date: 'ISO string' }
+      if (dateField.$date && typeof dateField.$date === 'string') {
+        return new Date(dateField.$date)
+      }
+      // Sometimes it's { $numberLong: '...' }
+      if (dateField.$numberLong) {
+        return new Date(Number(dateField.$numberLong))
+      }
+      // If it's already a Date object
+      if (dateField instanceof Date) return dateField
+      // Fallback: try to coerce
+      try {
+        return new Date(dateField)
+      } catch (e) {
+        return null
+      }
+    }
+
+    // Find bookings for this car using several possible id locations
+    const carBookings = bookings.filter((booking) => {
+      const bCar = booking.car
+      const bId = normalizeId(bCar)
+      return bId && carId && bId === carId
+    })
+
+    // No bookings for this car -> available
+    if (!carBookings.length) return true
+
+    // Check for any overlapping booking
+    const overlaps = carBookings.some((booking) => {
+      const bookingPickup = parseBookingDate(booking.pickupDate)
+      const bookingReturn = parseBookingDate(booking.returnDate)
+
+      if (!bookingPickup || !bookingReturn) return false
+
+      // If both selected dates provided -> check interval overlap (inclusive)
+      if (selectedPickup && selectedReturn) {
         return (
-          (pickup >= bookingPickup && pickup <= bookingReturn) ||
-          (returnDate >= bookingPickup && returnDate <= bookingReturn) ||
-          (pickup <= bookingPickup && returnDate >= bookingReturn)
+          (selectedPickup >= bookingPickup && selectedPickup <= bookingReturn) ||
+          (selectedReturn >= bookingPickup && selectedReturn <= bookingReturn) ||
+          (selectedPickup <= bookingPickup && selectedReturn >= bookingReturn)
         )
-      } else if (pickup) {
-        return pickup >= bookingPickup && pickup <= bookingReturn
-      } else if (returnDate) {
-        return returnDate >= bookingPickup && returnDate <= bookingReturn
+      }
+
+      // Only pickup provided
+      if (selectedPickup) {
+        return selectedPickup >= bookingPickup && selectedPickup <= bookingReturn
+      }
+
+      // Only return provided
+      if (selectedReturn) {
+        return selectedReturn >= bookingPickup && selectedReturn <= bookingReturn
       }
 
       return false
     })
+
+    // If there is any overlap, the car is NOT available
+    return !overlaps
   }
 
   // Scroll handler
