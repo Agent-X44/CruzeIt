@@ -5,13 +5,53 @@ import mongoose from "mongoose";
 
 // function to check availability of car for given dates
 const checkAvailability = async(car, pickupDate, returnDate) => {
+    console.log('=== CHECK AVAILABILITY ===');
+    console.log('Car ID:', car);
+    console.log('Search Pickup:', pickupDate);
+    console.log('Search Return:', returnDate);
+
+    // Find all non-cancelled bookings for this car
     const bookings = await Booking.find({
         car,
-        pickupDate: { $lte: returnDate },
-        returnDate: { $gte: pickupDate },
-        status: { $nin: ['Cancelled'] } // Exclude cancelled bookings from availability check
+        status: { $nin: ['Cancelled'] }
     })
-    return bookings.length === 0
+    
+    console.log('Total bookings found:', bookings.length);
+
+    if (bookings.length === 0) {
+        console.log('No bookings - car is AVAILABLE');
+        return true;
+    }
+
+    // Convert search dates to Date objects for comparison
+    const searchPickup = new Date(pickupDate);
+    const searchReturn = new Date(returnDate);
+
+    // Check each booking for overlap
+    const hasConflict = bookings.some((booking) => {
+        const bookingPickup = new Date(booking.pickupDate);
+        const bookingReturn = new Date(booking.returnDate);
+
+        console.log('\nChecking booking:', booking._id);
+        console.log('Booking pickup:', bookingPickup);
+        console.log('Booking return:', bookingReturn);
+        console.log('Booking status:', booking.status);
+
+        // Check for date overlap
+        // Overlap occurs if:
+        // 1. Search starts before booking ends AND
+        // 2. Search ends after booking starts
+        const overlaps = searchPickup < bookingReturn && searchReturn > bookingPickup;
+
+        console.log('Overlaps?', overlaps);
+
+        return overlaps;
+    });
+
+    console.log('\nFinal result:', hasConflict ? 'NOT AVAILABLE (conflict found)' : 'AVAILABLE');
+    console.log('==========================\n');
+
+    return !hasConflict;
 }
 
 
@@ -19,6 +59,11 @@ const checkAvailability = async(car, pickupDate, returnDate) => {
 export const checkAvailabilityofCar = async (req, res) => {
     try {
         const {location, pickupDate, returnDate} = req.body;
+        
+        console.log('\n=== SEARCH REQUEST ===');
+        console.log('Location:', location || 'ALL LOCATIONS');
+        console.log('Pickup Date:', pickupDate);
+        console.log('Return Date:', returnDate);
         
         // Validate dates
         const pickup = new Date(pickupDate);
@@ -28,23 +73,38 @@ export const checkAvailabilityofCar = async (req, res) => {
             return res.json({success: false, message: 'Invalid input date. Return date must be after pickup date'})
         }
         
-        // UPDATED: Fetch all cars in the location (including unavailable ones temporarily)
-        const cars = await Car.find({location})
+        // Build query - if location is provided, filter by it; otherwise get all cars
+        const query = { isAvailable: true };
+        if (location && location.trim()) {
+            query.location = location;
+        }
+        
+        // Fetch cars based on query
+        const cars = await Car.find(query)
+        console.log('Total cars found:', cars.length);
 
-        // UPDATED: Check car availability for given dates - filter out cars with bookings
+        // Check each car for conflicting bookings
         const availableCarsPromises = cars.map(async (car) => {
-            // Check if car is marked as available by owner AND has no conflicting bookings
+            console.log(`\n--- Checking car: ${car.brand} ${car.model} (${car._id}) in ${car.location} ---`);
             const hasNoConflictingBookings = await checkAvailability(car._id, pickupDate, returnDate)
-            return {
-                ...car._doc, 
-                isAvailableForDates: car.isAvailable && hasNoConflictingBookings
+            
+            if (hasNoConflictingBookings) {
+                console.log(`✓ Car ${car._id} is AVAILABLE`);
+                return car._doc
+            } else {
+                console.log(`✗ Car ${car._id} is NOT AVAILABLE`);
             }
+            return null
         })
 
         let availableCars = await Promise.all(availableCarsPromises);
         
-        // UPDATED: Only return cars that are both marked available AND have no bookings
-        availableCars = availableCars.filter((car) => car.isAvailableForDates === true)
+        // Filter out null values (cars with conflicting bookings)
+        availableCars = availableCars.filter(car => car !== null)
+
+        console.log('\n=== FINAL RESULTS ===');
+        console.log('Available cars:', availableCars.length);
+        console.log('=====================\n');
 
         res.json({success: true, availableCars})
 
