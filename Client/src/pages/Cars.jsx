@@ -30,7 +30,6 @@ const Cars = () => {
   const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
   const [returnDate, setReturnDate] = useState(urlReturnDate || '')
   const [dynamicCities, setDynamicCities] = useState([])
-  const [bookings, setBookings] = useState([])
   const [isScrolled, setIsScrolled] = useState(false)
 
   // Refs
@@ -46,7 +45,6 @@ const Cars = () => {
   // Fetch data on component mount
   useEffect(() => {
     fetchLocations()
-    fetchBookings()
   }, [axios])
 
   // Fetch locations from API
@@ -61,114 +59,11 @@ const Cars = () => {
     }
   }
 
-  // Fetch bookings from API
-  const fetchBookings = async () => {
-    try {
-      const { data } = await axios.get('/api/bookings')
-      if (data.success && data.bookings) {
-        setBookings(data.bookings)
-      }
-    } catch (error) {
-      console.error('Error fetching bookings:', error)
-    }
-  }
-
   // Merge and filter cities
   const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
   const filteredCities = allCities.filter(city =>
     city.toLowerCase().includes(locationSearchTerm.toLowerCase())
   )
-
-  // Check car availability for selected dates
-  // Robustly handles different booking shapes returned from the API (strings, objects with _id or $oid, and nested date representations)
-  const isCarAvailableForDates = (carIdRaw, selectedPickupRaw, selectedReturnRaw) => {
-    if (!selectedPickupRaw && !selectedReturnRaw) return true
-
-    // Normalize selected dates
-    const selectedPickup = selectedPickupRaw ? new Date(selectedPickupRaw) : null
-    const selectedReturn = selectedReturnRaw ? new Date(selectedReturnRaw) : null
-
-    // Normalize carId (car._id may be string or object)
-    const normalizeId = (id) => {
-      if (!id) return null
-      if (typeof id === 'string') return id
-      if (typeof id === 'object') {
-        return id.$oid || id._id || (id.toString && id.toString()) || null
-      }
-      return String(id)
-    }
-
-    const carId = normalizeId(carIdRaw)
-
-    // Helper to parse booking date fields in multiple shapes
-    const parseBookingDate = (dateField) => {
-      if (!dateField) return null
-      // ISO string
-      if (typeof dateField === 'string') return new Date(dateField)
-      // Nested MongoDB extended JSON: { $date: { $numberLong: '...' } }
-      if (dateField.$date && dateField.$date.$numberLong) {
-        return new Date(Number(dateField.$date.$numberLong))
-      }
-      // Sometimes it's { $date: 'ISO string' }
-      if (dateField.$date && typeof dateField.$date === 'string') {
-        return new Date(dateField.$date)
-      }
-      // Sometimes it's { $numberLong: '...' }
-      if (dateField.$numberLong) {
-        return new Date(Number(dateField.$numberLong))
-      }
-      // If it's already a Date object
-      if (dateField instanceof Date) return dateField
-      // Fallback: try to coerce
-      try {
-        return new Date(dateField)
-      } catch (e) {
-        return null
-      }
-    }
-
-    // Find bookings for this car using several possible id locations
-    const carBookings = bookings.filter((booking) => {
-      const bCar = booking.car
-      const bId = normalizeId(bCar)
-      return bId && carId && bId === carId
-    })
-
-    // No bookings for this car -> available
-    if (!carBookings.length) return true
-
-    // Check for any overlapping booking
-    const overlaps = carBookings.some((booking) => {
-      const bookingPickup = parseBookingDate(booking.pickupDate)
-      const bookingReturn = parseBookingDate(booking.returnDate)
-
-      if (!bookingPickup || !bookingReturn) return false
-
-      // If both selected dates provided -> check interval overlap (inclusive)
-      if (selectedPickup && selectedReturn) {
-        return (
-          (selectedPickup >= bookingPickup && selectedPickup <= bookingReturn) ||
-          (selectedReturn >= bookingPickup && selectedReturn <= bookingReturn) ||
-          (selectedPickup <= bookingPickup && selectedReturn >= bookingReturn)
-        )
-      }
-
-      // Only pickup provided
-      if (selectedPickup) {
-        return selectedPickup >= bookingPickup && selectedPickup <= bookingReturn
-      }
-
-      // Only return provided
-      if (selectedReturn) {
-        return selectedReturn >= bookingPickup && selectedReturn <= bookingReturn
-      }
-
-      return false
-    })
-
-    // If there is any overlap, the car is NOT available
-    return !overlaps
-  }
 
   // Scroll handler
   useEffect(() => {
@@ -213,7 +108,7 @@ const Cars = () => {
     )
   }
 
-  // Main filter function
+  // Main filter function (for non-date searches)
   const applyFilter = () => {
     let filtered = cars.filter(car => car.isAvailable === true)
 
@@ -235,21 +130,14 @@ const Cars = () => {
       })
     }
 
-    // Location filter
-    if (pickupLocation && !input.trim()) {
+    // Location filter (only when no dates are selected)
+    if (pickupLocation && !pickupDate && !returnDate) {
       const loc = pickupLocation.toLowerCase()
       filtered = filtered.filter((car) => {
         return (
           car.location?.toLowerCase().includes(loc) ||
           car.pickupLocation?.toLowerCase().includes(loc)
         )
-      })
-    }
-
-    // Date filter
-    if (pickupDate || returnDate) {
-      filtered = filtered.filter((car) => {
-        return isCarAvailableForDates(car._id, pickupDate, returnDate)
       })
     }
 
@@ -267,7 +155,7 @@ const Cars = () => {
     setIsLoading(false)
   }
 
-  // Search availability via API
+  // Search availability via API (for date-based searches)
   const searchCarAvailability = async () => {
     setIsLoading(true)
     try {
@@ -278,7 +166,37 @@ const Cars = () => {
       })
       
       if (data.success) {
-        const availableCars = data.availableCars.filter(car => car.isAvailable === true)
+        // IMPORTANT: Trust the backend results completely
+        let availableCars = data.availableCars.filter(car => car.isAvailable === true)
+        
+        // Apply only non-date filters (category, fuel type, search term)
+        if (input.trim()) {
+          const searchTerm = input.toLowerCase()
+          availableCars = availableCars.filter((car) => {
+            return (
+              car.brand?.toLowerCase().includes(searchTerm) ||
+              car.model?.toLowerCase().includes(searchTerm) ||
+              car.category?.toLowerCase().includes(searchTerm) ||
+              car.fuel_type?.toLowerCase().includes(searchTerm) ||
+              car.transmission?.toLowerCase().includes(searchTerm) ||
+              car.year?.toString().includes(searchTerm) ||
+              `${car.brand} ${car.model}`.toLowerCase().includes(searchTerm)
+            )
+          })
+        }
+        
+        if (selectedCategories.length > 0) {
+          availableCars = availableCars.filter((car) => 
+            selectedCategories.includes(car.category)
+          )
+        }
+        
+        if (selectedFuelTypes.length > 0) {
+          availableCars = availableCars.filter((car) => 
+            selectedFuelTypes.includes(car.fuel_type)
+          )
+        }
+        
         setFilteredCars(availableCars)
         if (availableCars.length === 0) {
           toast.error('No cars available for selected criteria')
@@ -302,6 +220,12 @@ const Cars = () => {
       return
     }
 
+    // Validate that if dates are provided, both must be provided
+    if ((pickupDate && !returnDate) || (!pickupDate && returnDate)) {
+      toast.error('Please provide both pickup and return dates')
+      return
+    }
+
     // Update URL params
     const params = new URLSearchParams()
     if (pickupLocation) params.set('pickupLocation', pickupLocation)
@@ -310,10 +234,16 @@ const Cars = () => {
     if (input.trim()) params.set('search', input.trim())
     setSearchParams(params)
 
-    // Choose search method
-    if (pickupLocation && pickupDate && returnDate) {
+    // Choose search method: Use backend API if dates are provided (location is optional)
+    if (pickupDate && returnDate) {
+      console.log('🔍 Using BACKEND API search with dates:', {
+        location: pickupLocation || 'ALL LOCATIONS',
+        pickup: pickupDate,
+        return: returnDate
+      })
       searchCarAvailability()
     } else {
+      console.log('🔍 Using CLIENT-SIDE filter (no dates)')
       applyFilter()
     }
     
@@ -361,26 +291,10 @@ const Cars = () => {
     setShowFilters(false)
   }
 
-  // Clear only date and location filters
-  const clearDateLocationFilters = () => {
-    setPickupLocation('')
-    setLocationSearchTerm('')
-    setPickupDate('')
-    setReturnDate('')
-    setIsLocationDropdownOpen(false)
-    
-    const newParams = new URLSearchParams(searchParams)
-    newParams.delete('pickupLocation')
-    newParams.delete('pickupDate')
-    newParams.delete('returnDate')
-    setSearchParams(newParams)
-
-    applyFilter()
-  }
-
   // Initial load and URL param handling
   useEffect(() => {
-    if (urlPickupLocation && urlPickupDate && urlReturnDate) {
+    if ((urlPickupDate && urlReturnDate)) {
+      // Use backend API if dates are in URL (location is optional)
       searchCarAvailability()
     } else {
       setTimeout(() => {
@@ -389,12 +303,14 @@ const Cars = () => {
     }
   }, [])
 
-  // Apply filters when dependencies change
+  // Apply filters when dependencies change (ONLY for non-date filters)
   useEffect(() => {
-    // Re-apply filters whenever filter inputs or source data change.
-    // Do not gate on bookings length; availability checks will return true when no bookings exist.
-    applyFilter()
-  }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate, bookings])
+    // Only use client-side filtering when NO dates are selected
+    // When dates are selected, searchCarAvailability should be used instead
+    if (!pickupDate && !returnDate) {
+      applyFilter()
+    }
+  }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation])
 
   // Sync state with URL params
   useEffect(() => {
@@ -817,4 +733,4 @@ const Cars = () => {
   )
 }
 
-export default Cars
+export default Cars;
