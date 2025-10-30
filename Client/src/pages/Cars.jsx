@@ -25,15 +25,20 @@ const Cars = () => {
   const [selectedFuelTypes, setSelectedFuelTypes] = useState([])
   const [showFilters, setShowFilters] = useState(false)
   
-  // Built-in location and date states - UPDATED with Hero.jsx dropdown logic
+  // Built-in location and date states
   const [pickupLocation, setPickupLocation] = useState(urlPickupLocation || '')
-  const [locationSearchTerm, setLocationSearchTerm] = useState('') // NEW: Separate search term for dropdown
-  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false) // NEW: Dropdown state
+  const [locationSearchTerm, setLocationSearchTerm] = useState('')
+  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false)
   const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
   const [returnDate, setReturnDate] = useState(urlReturnDate || '')
   const [dynamicCities, setDynamicCities] = useState([])
+  // NEW: State for available dates calculated from cars data
+  const [availableDates, setAvailableDates] = useState({
+    minPickupDate: '',
+    maxReturnDate: ''
+  })
   
-  // NEW: Ref for dropdown click outside
+  // Ref for dropdown click outside
   const locationDropdownRef = useRef(null)
   
   // Scroll state for collapsible filters
@@ -62,13 +67,107 @@ const Cars = () => {
     fetchLocations()
   }, [axios])
 
-  // Merge cityList from assets with dynamic cities from database and sort - EXACTLY like Hero.jsx
+  // NEW: Calculate available dates from cars data based on isAvailable and timestamps
+  useEffect(() => {
+    if (cars.length > 0) {
+      const availableCars = cars.filter(car => car.isAvailable === true)
+      
+      if (availableCars.length > 0) {
+        // Get the earliest createdAt date and latest updatedAt date from available cars
+        const createdAtDates = availableCars.map(car => new Date(car.createdAt))
+        const updatedAtDates = availableCars.map(car => new Date(car.updatedAt))
+        
+        const minCreatedDate = new Date(Math.min(...createdAtDates))
+        const maxUpdatedDate = new Date(Math.max(...updatedAtDates))
+        
+        // Set min pickup date to today or the earliest car creation date, whichever is later
+        const today = new Date()
+        const minPickupDate = minCreatedDate > today ? minCreatedDate : today
+        
+        // Set max return date to 1 year from today or the latest update date, whichever is earlier
+        const oneYearFromNow = new Date(today)
+        oneYearFromNow.setFullYear(today.getFullYear() + 1)
+        const maxReturnDate = maxUpdatedDate < oneYearFromNow ? maxUpdatedDate : oneYearFromNow
+        
+        setAvailableDates({
+          minPickupDate: minPickupDate.toISOString().split('T')[0],
+          maxReturnDate: maxReturnDate.toISOString().split('T')[0]
+        })
+      } else {
+        // Fallback if no available cars
+        const today = new Date().toISOString().split('T')[0]
+        const oneYearFromNow = new Date()
+        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
+        const maxDate = oneYearFromNow.toISOString().split('T')[0]
+        
+        setAvailableDates({
+          minPickupDate: today,
+          maxReturnDate: maxDate
+        })
+      }
+    }
+  }, [cars])
+
+  // Merge cityList from assets with dynamic cities from database and sort
   const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
 
-  // Filter cities based on search - EXACTLY like Hero.jsx
+  // Filter cities based on search
   const filteredCities = (allCities || []).filter(city =>
     city.toLowerCase().includes(locationSearchTerm.toLowerCase())
   )
+
+  // NEW: Get minimum and maximum dates for date inputs
+  const getMinPickupDate = () => {
+    return availableDates.minPickupDate || new Date().toISOString().split('T')[0]
+  }
+
+  const getMaxReturnDate = () => {
+    return availableDates.maxReturnDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
+  }
+
+  // NEW: Validate if selected dates are within available range
+  const validateDates = () => {
+    if (!pickupDate && !returnDate) return true
+    
+    const minPickup = new Date(getMinPickupDate())
+    const maxReturn = new Date(getMaxReturnDate())
+    
+    if (pickupDate) {
+      const selectedPickup = new Date(pickupDate)
+      if (selectedPickup < minPickup) {
+        toast.error(`Pickup date cannot be before ${formatDate(getMinPickupDate())}`)
+        return false
+      }
+      if (selectedPickup > maxReturn) {
+        toast.error(`Pickup date cannot be after ${formatDate(getMaxReturnDate())}`)
+        return false
+      }
+    }
+    
+    if (returnDate) {
+      const selectedReturn = new Date(returnDate)
+      if (selectedReturn > maxReturn) {
+        toast.error(`Return date cannot be after ${formatDate(getMaxReturnDate())}`)
+        return false
+      }
+      if (selectedReturn < minPickup) {
+        toast.error(`Return date cannot be before ${formatDate(getMinPickupDate())}`)
+        return false
+      }
+    }
+    
+    if (pickupDate && returnDate) {
+      const selectedPickup = new Date(pickupDate)
+      const selectedReturn = new Date(returnDate)
+      
+      if (selectedReturn < selectedPickup) {
+        toast.error('Return date cannot be before pickup date')
+        return false
+      }
+    }
+    
+    return true
+  }
 
   // Scroll handler for collapsible filters
   useEffect(() => {
@@ -86,7 +185,7 @@ const Cars = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [showFilters])
 
-  // NEW: Close dropdown when clicking outside - EXACTLY like Hero.jsx
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (locationDropdownRef.current && !locationDropdownRef.current.contains(event.target)) {
@@ -122,6 +221,11 @@ const Cars = () => {
       return
     }
 
+    // NEW: Validate dates before proceeding
+    if (!validateDates()) {
+      return
+    }
+
     // Update URL with all parameters
     const params = new URLSearchParams()
     if (pickupLocation) params.set('pickupLocation', pickupLocation)
@@ -142,7 +246,7 @@ const Cars = () => {
     setShowFilters(false)
   }
 
-  // NEW: Handle location selection from dropdown - EXACTLY like Hero.jsx
+  // Handle location selection from dropdown
   const handleLocationSelect = (city) => {
     setPickupLocation(city)
     setLocationSearchTerm('')
@@ -150,7 +254,8 @@ const Cars = () => {
   }
 
   const applyFilter = () => {
-    let filtered = cars.slice()
+    // NEW: Only show available cars (isAvailable: true)
+    let filtered = cars.filter(car => car.isAvailable === true)
 
     // Apply search filter - includes location when user types a search
     if (input.trim() !== '') {
@@ -206,8 +311,10 @@ const Cars = () => {
           returnDate: returnDate 
         })
       if (data.success) {
-        setFilteredCars(data.availableCars)
-        if (data.availableCars.length === 0) {
+        // NEW: Filter results to only show available cars
+        const availableCars = data.availableCars.filter(car => car.isAvailable === true)
+        setFilteredCars(availableCars)
+        if (availableCars.length === 0) {
           toast.error('No cars available for selected criteria')
         }
       } else {
@@ -227,6 +334,22 @@ const Cars = () => {
     setInput(value)
   }
 
+  // NEW: Handle date changes with validation
+  const handlePickupDateChange = (e) => {
+    const newDate = e.target.value
+    setPickupDate(newDate)
+    
+    // If return date is before new pickup date, clear return date
+    if (returnDate && newDate > returnDate) {
+      setReturnDate('')
+    }
+  }
+
+  const handleReturnDateChange = (e) => {
+    const newDate = e.target.value
+    setReturnDate(newDate)
+  }
+
   // Clear all filters
   const clearFilters = () => {
     setInput('')
@@ -243,8 +366,8 @@ const Cars = () => {
     // detecting changes in some cases).
     setSearchParams(new URLSearchParams())
     
-    // Show all cars
-    setFilteredCars(cars)
+    // Show all available cars
+    setFilteredCars(cars.filter(car => car.isAvailable === true))
     setShowFilters(false)
   }
 
@@ -436,7 +559,7 @@ const Cars = () => {
                 <div className='mb-6'>
                   <h3 className='text-sm font-semibold text-gray-700 mb-4'>Location & Dates</h3>
                   <div className='grid grid-cols-1 md:grid-cols-3 gap-4'>
-                    {/* Location Input - UPDATED with Hero.jsx dropdown implementation */}
+                    {/* Location Input */}
                     <div className="flex flex-col items-start gap-1.5 w-full relative" ref={locationDropdownRef}>
                       <label className="text-xs font-medium text-gray-700">Pickup Location</label>
                       <input
@@ -451,7 +574,6 @@ const Cars = () => {
                         className="text-gray-800 border border-gray-300 rounded-lg px-3 py-2 w-full placeholder:text-gray-500 focus:outline-primary focus:border-primary text-sm"
                         placeholder="Select or type"
                       />
-                      {/* EXACT DROPDOWN FROM Hero.jsx */}
                       {isLocationDropdownOpen && filteredCities && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto z-50 w-full">
                           {filteredCities.length > 0 ? (
@@ -475,28 +597,36 @@ const Cars = () => {
                       )}
                     </div>
 
-                    {/* Pickup Date */}
+                    {/* Pickup Date - UPDATED with database date validation */}
                     <div className="flex flex-col items-start gap-1.5">
                       <label className="text-xs font-medium text-gray-700">Pick-up Date</label>
                       <input 
                         value={pickupDate} 
-                        onChange={(e) => setPickupDate(e.target.value)}
+                        onChange={handlePickupDateChange}
                         type="date"
-                        min={new Date().toISOString().split('T')[0]}
+                        min={getMinPickupDate()}
+                        max={getMaxReturnDate()}
                         className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-primary focus:border-primary ${pickupDate ? 'text-gray-800' : 'text-gray-500'}`}
                       />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Available from {formatDate(getMinPickupDate())}
+                      </div>
                     </div>
 
-                    {/* Return Date */}
+                    {/* Return Date - UPDATED with database date validation */}
                     <div className="flex flex-col items-start gap-1.5">
                       <label className="text-xs font-medium text-gray-700">Return Date</label>
                       <input 
                         value={returnDate} 
-                        onChange={(e) => setReturnDate(e.target.value)}
+                        onChange={handleReturnDateChange}
                         type="date"
-                        min={pickupDate || new Date().toISOString().split('T')[0]}
+                        min={pickupDate || getMinPickupDate()}
+                        max={getMaxReturnDate()}
                         className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-primary focus:border-primary ${returnDate ? 'text-gray-800' : 'text-gray-500'}`}
                       />
+                      <div className="text-xs text-gray-500 mt-1">
+                        Available until {formatDate(getMaxReturnDate())}
+                      </div>
                     </div>
                   </div>
                 </div>
