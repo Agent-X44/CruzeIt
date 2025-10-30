@@ -32,11 +32,8 @@ const Cars = () => {
   const [pickupDate, setPickupDate] = useState(urlPickupDate || '')
   const [returnDate, setReturnDate] = useState(urlReturnDate || '')
   const [dynamicCities, setDynamicCities] = useState([])
-  // NEW: State for available dates calculated from cars data
-  const [availableDates, setAvailableDates] = useState({
-    minPickupDate: '',
-    maxReturnDate: ''
-  })
+  // NEW: State to store existing bookings
+  const [bookings, setBookings] = useState([])
   
   // Ref for dropdown click outside
   const locationDropdownRef = useRef(null)
@@ -67,46 +64,21 @@ const Cars = () => {
     fetchLocations()
   }, [axios])
 
-  // NEW: Calculate available dates from cars data based on isAvailable and timestamps
+  // NEW: Fetch existing bookings to check availability
   useEffect(() => {
-    if (cars.length > 0) {
-      const availableCars = cars.filter(car => car.isAvailable === true)
-      
-      if (availableCars.length > 0) {
-        // Get the earliest createdAt date and latest updatedAt date from available cars
-        const createdAtDates = availableCars.map(car => new Date(car.createdAt))
-        const updatedAtDates = availableCars.map(car => new Date(car.updatedAt))
-        
-        const minCreatedDate = new Date(Math.min(...createdAtDates))
-        const maxUpdatedDate = new Date(Math.max(...updatedAtDates))
-        
-        // Set min pickup date to today or the earliest car creation date, whichever is later
-        const today = new Date()
-        const minPickupDate = minCreatedDate > today ? minCreatedDate : today
-        
-        // Set max return date to 1 year from today or the latest update date, whichever is earlier
-        const oneYearFromNow = new Date(today)
-        oneYearFromNow.setFullYear(today.getFullYear() + 1)
-        const maxReturnDate = maxUpdatedDate < oneYearFromNow ? maxUpdatedDate : oneYearFromNow
-        
-        setAvailableDates({
-          minPickupDate: minPickupDate.toISOString().split('T')[0],
-          maxReturnDate: maxReturnDate.toISOString().split('T')[0]
-        })
-      } else {
-        // Fallback if no available cars
-        const today = new Date().toISOString().split('T')[0]
-        const oneYearFromNow = new Date()
-        oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1)
-        const maxDate = oneYearFromNow.toISOString().split('T')[0]
-        
-        setAvailableDates({
-          minPickupDate: today,
-          maxReturnDate: maxDate
-        })
+    const fetchBookings = async () => {
+      try {
+        const { data } = await axios.get('/api/bookings')
+        if (data.success && data.bookings) {
+          setBookings(data.bookings)
+        }
+      } catch (error) {
+        console.error('Error fetching bookings:', error)
       }
     }
-  }, [cars])
+
+    fetchBookings()
+  }, [axios])
 
   // Merge cityList from assets with dynamic cities from database and sort
   const allCities = [...new Set([...(cityList || []), ...dynamicCities])].sort()
@@ -116,57 +88,43 @@ const Cars = () => {
     city.toLowerCase().includes(locationSearchTerm.toLowerCase())
   )
 
-  // NEW: Get minimum and maximum dates for date inputs
-  const getMinPickupDate = () => {
-    return availableDates.minPickupDate || new Date().toISOString().split('T')[0]
-  }
+  // NEW: Check if a car is available for the selected dates
+  const isCarAvailableForDates = (carId, selectedPickupDate, selectedReturnDate) => {
+    if (!selectedPickupDate && !selectedReturnDate) return true
+    
+    const selectedPickup = selectedPickupDate ? new Date(selectedPickupDate) : null
+    const selectedReturn = selectedReturnDate ? new Date(selectedReturnDate) : null
 
-  const getMaxReturnDate = () => {
-    return availableDates.maxReturnDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]
-  }
+    // Find all bookings for this car
+    const carBookings = bookings.filter(booking => 
+      booking.car && booking.car.$oid === carId
+    )
 
-  // NEW: Validate if selected dates are within available range
-  const validateDates = () => {
-    if (!pickupDate && !returnDate) return true
-    
-    const minPickup = new Date(getMinPickupDate())
-    const maxReturn = new Date(getMaxReturnDate())
-    
-    if (pickupDate) {
-      const selectedPickup = new Date(pickupDate)
-      if (selectedPickup < minPickup) {
-        toast.error(`Pickup date cannot be before ${formatDate(getMinPickupDate())}`)
-        return false
+    // Check if any booking conflicts with selected dates
+    const hasConflict = carBookings.some(booking => {
+      const bookingPickup = new Date(booking.pickupDate.$date.$numberLong)
+      const bookingReturn = new Date(booking.returnDate.$date.$numberLong)
+
+      // Check for date overlap
+      if (selectedPickup && selectedReturn) {
+        // Conflict if selected dates overlap with booking dates
+        return (
+          (selectedPickup >= bookingPickup && selectedPickup <= bookingReturn) ||
+          (selectedReturn >= bookingPickup && selectedReturn <= bookingReturn) ||
+          (selectedPickup <= bookingPickup && selectedReturn >= bookingReturn)
+        )
+      } else if (selectedPickup) {
+        // Only pickup date selected - conflict if it falls within any booking
+        return selectedPickup >= bookingPickup && selectedPickup <= bookingReturn
+      } else if (selectedReturn) {
+        // Only return date selected - conflict if it falls within any booking
+        return selectedReturn >= bookingPickup && selectedReturn <= bookingReturn
       }
-      if (selectedPickup > maxReturn) {
-        toast.error(`Pickup date cannot be after ${formatDate(getMaxReturnDate())}`)
-        return false
-      }
-    }
-    
-    if (returnDate) {
-      const selectedReturn = new Date(returnDate)
-      if (selectedReturn > maxReturn) {
-        toast.error(`Return date cannot be after ${formatDate(getMaxReturnDate())}`)
-        return false
-      }
-      if (selectedReturn < minPickup) {
-        toast.error(`Return date cannot be before ${formatDate(getMinPickupDate())}`)
-        return false
-      }
-    }
-    
-    if (pickupDate && returnDate) {
-      const selectedPickup = new Date(pickupDate)
-      const selectedReturn = new Date(returnDate)
-      
-      if (selectedReturn < selectedPickup) {
-        toast.error('Return date cannot be before pickup date')
-        return false
-      }
-    }
-    
-    return true
+
+      return false
+    })
+
+    return !hasConflict
   }
 
   // Scroll handler for collapsible filters
@@ -221,11 +179,6 @@ const Cars = () => {
       return
     }
 
-    // NEW: Validate dates before proceeding
-    if (!validateDates()) {
-      return
-    }
-
     // Update URL with all parameters
     const params = new URLSearchParams()
     if (pickupLocation) params.set('pickupLocation', pickupLocation)
@@ -254,7 +207,7 @@ const Cars = () => {
   }
 
   const applyFilter = () => {
-    // NEW: Only show available cars (isAvailable: true)
+    // Start with all available cars
     let filtered = cars.filter(car => car.isAvailable === true)
 
     // Apply search filter - includes location when user types a search
@@ -275,8 +228,7 @@ const Cars = () => {
       })
     }
 
-    // If the user entered a pickup location but didn't type a search term,
-    // filter by location as a standalone filter
+    // Apply location filter (standalone - when no search text)
     if (pickupLocation && input.trim() === '') {
       const loc = pickupLocation.toLowerCase()
       filtered = filtered.filter((car) => {
@@ -284,6 +236,13 @@ const Cars = () => {
           car.location?.toLowerCase().includes(loc) ||
           car.pickupLocation?.toLowerCase().includes(loc)
         )
+      })
+    }
+
+    // NEW: Apply date filters using booking data
+    if (pickupDate || returnDate) {
+      filtered = filtered.filter((car) => {
+        return isCarAvailableForDates(car._id, pickupDate, returnDate)
       })
     }
 
@@ -311,7 +270,7 @@ const Cars = () => {
           returnDate: returnDate 
         })
       if (data.success) {
-        // NEW: Filter results to only show available cars
+        // Filter results to only show available cars
         const availableCars = data.availableCars.filter(car => car.isAvailable === true)
         setFilteredCars(availableCars)
         if (availableCars.length === 0) {
@@ -334,7 +293,7 @@ const Cars = () => {
     setInput(value)
   }
 
-  // NEW: Handle date changes with validation
+  // Handle date changes
   const handlePickupDateChange = (e) => {
     const newDate = e.target.value
     setPickupDate(newDate)
@@ -361,9 +320,7 @@ const Cars = () => {
     setSelectedFuelTypes([])
     setIsLocationDropdownOpen(false)
     
-    // Clear URL parameters using a fresh URLSearchParams to avoid mutating
-    // the object returned by the hook (which can prevent React Router from
-    // detecting changes in some cases).
+    // Clear URL parameters
     setSearchParams(new URLSearchParams())
     
     // Show all available cars
@@ -379,8 +336,7 @@ const Cars = () => {
     setReturnDate('')
     setIsLocationDropdownOpen(false)
     
-    // Remove only the date/location params (create a new params instance to
-    // avoid mutating the hook's searchParams directly).
+    // Remove only the date/location params
     const newParams = new URLSearchParams(searchParams)
     newParams.delete('pickupLocation')
     newParams.delete('pickupDate')
@@ -401,11 +357,12 @@ const Cars = () => {
     }
   }, [])
 
+  // FIXED: Update the dependency array to include bookings
   useEffect(() => {
-    if (cars.length > 0 && !isSearchData) {
+    if (cars.length > 0 && bookings.length > 0) {
       applyFilter()
     }
-  }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate])
+  }, [input, cars, selectedCategories, selectedFuelTypes, pickupLocation, pickupDate, returnDate, bookings])
 
   // Update states when URL params change
   useEffect(() => {
@@ -450,7 +407,7 @@ const Cars = () => {
     }
   }
 
-  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input || pickupLocation
+  const hasActiveFilters = selectedCategories.length > 0 || selectedFuelTypes.length > 0 || input || pickupLocation || pickupDate || returnDate
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -597,36 +554,28 @@ const Cars = () => {
                       )}
                     </div>
 
-                    {/* Pickup Date - UPDATED with database date validation */}
+                    {/* Pickup Date */}
                     <div className="flex flex-col items-start gap-1.5">
                       <label className="text-xs font-medium text-gray-700">Pick-up Date</label>
                       <input 
                         value={pickupDate} 
                         onChange={handlePickupDateChange}
                         type="date"
-                        min={getMinPickupDate()}
-                        max={getMaxReturnDate()}
+                        min={new Date().toISOString().split('T')[0]}
                         className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-primary focus:border-primary ${pickupDate ? 'text-gray-800' : 'text-gray-500'}`}
                       />
-                      <div className="text-xs text-gray-500 mt-1">
-                        Available from {formatDate(getMinPickupDate())}
-                      </div>
                     </div>
 
-                    {/* Return Date - UPDATED with database date validation */}
+                    {/* Return Date */}
                     <div className="flex flex-col items-start gap-1.5">
                       <label className="text-xs font-medium text-gray-700">Return Date</label>
                       <input 
                         value={returnDate} 
                         onChange={handleReturnDateChange}
                         type="date"
-                        min={pickupDate || getMinPickupDate()}
-                        max={getMaxReturnDate()}
+                        min={pickupDate || new Date().toISOString().split('T')[0]}
                         className={`text-sm border border-gray-300 rounded-lg px-3 py-2 w-full focus:outline-primary focus:border-primary ${returnDate ? 'text-gray-800' : 'text-gray-500'}`}
                       />
-                      <div className="text-xs text-gray-500 mt-1">
-                        Available until {formatDate(getMaxReturnDate())}
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -711,190 +660,7 @@ const Cars = () => {
       </motion.div>
 
       {/* Rest of the component remains the same */}
-      {/* Cars Grid Section */}
-      <div className='px-6 md:px-16 lg:px-24 xl:px-32 mt-10 mb-20'>
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className='flex justify-between items-center mb-4 max-w-7xl mx-auto flex-wrap gap-4'
-        >
-          <p className='text-gray-500'>
-            Showing {filteredCars.length} {filteredCars.length === 1 ? 'Car' : 'Cars'}
-            {pickupLocation && ` in ${pickupLocation}`}
-          </p>
-          
-          {/* Active Filters Display */}
-          {hasActiveFilters && (
-            <div className='flex items-center gap-2 text-sm flex-wrap'>
-              <span className='text-gray-500'>Filters:</span>
-              
-              {/* Location Filter */}
-              {pickupLocation && (
-                <span className='px-3 py-1 bg-purple-50 text-purple-600 rounded-full flex items-center gap-1'>
-                  📍 {pickupLocation}
-                  <button
-                    onClick={() => setPickupLocation('')}
-                    className='hover:text-purple-800'
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              
-              {/* Date Filters */}
-              {pickupDate && returnDate && (
-                <span className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
-                  📅 {formatDate(pickupDate)} - {formatDate(returnDate)}
-                  <button
-                    onClick={() => {
-                      setPickupDate('')
-                      setReturnDate('')
-                    }}
-                    className='hover:text-green-800'
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              
-              {/* Search Filter */}
-              {input && (
-                <span className='px-3 py-1 bg-primary/10 text-primary rounded-full flex items-center gap-1'>
-                  "{input}"
-                  <button
-                    onClick={() => setInput('')}
-                    className='hover:text-primary-dull'
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              
-              {/* Category Filters */}
-              {selectedCategories.map(category => (
-                <span key={category} className='px-3 py-1 bg-blue-50 text-blue-600 rounded-full flex items-center gap-1'>
-                  {category}
-                  <button
-                    onClick={() => toggleCategory(category)}
-                    className='hover:text-blue-800'
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-              
-              {/* Fuel Type Filters */}
-              {selectedFuelTypes.map(fuelType => (
-                <span key={fuelType} className='px-3 py-1 bg-green-50 text-green-600 rounded-full flex items-center gap-1'>
-                  {fuelType}
-                  <button
-                    onClick={() => toggleFuelType(fuelType)}
-                    className='hover:text-green-800'
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </motion.div>
-
-        {/* Loading State */}
-        <AnimatePresence mode="wait">
-          {isLoading ? (
-            <motion.div
-              key="loading"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className='flex justify-center'
-            >
-              <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 max-w-7xl mx-auto w-full justify-items-center'>
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3, delay: i * 0.1 }}
-                    className="bg-gray-200 rounded-lg h-80 w-full max-w-sm animate-pulse"
-                  />
-                ))}
-              </div>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="content"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-              className='flex justify-center'
-            >
-              <div className={`
-                grid gap-8 mt-4 max-w-7xl mx-auto w-full
-                ${filteredCars.length === 1 ? 'grid-cols-1 justify-items-center' : ''}
-                ${filteredCars.length === 2 ? 'grid-cols-1 sm:grid-cols-2 justify-items-center' : ''}
-                ${filteredCars.length >= 3 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : ''}
-              `}>
-                <AnimatePresence mode="popLayout">
-                  {filteredCars.map((car, index) => (
-                    <motion.div 
-                      key={car._id}
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit="exit"
-                      layout
-                      whileHover={{ 
-                        y: -8, 
-                        scale: 1.03,
-                        transition: { duration: 0.3 }
-                      }}
-                      className={`
-                        ${filteredCars.length === 1 ? 'w-full max-w-sm' : ''}
-                        ${filteredCars.length === 2 ? 'w-full max-w-sm' : ''}
-                        ${filteredCars.length >= 3 ? 'w-full' : ''}
-                      `}
-                    >
-                      <CarCards car={car} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* No Results */}
-        <AnimatePresence>
-          {!isLoading && filteredCars.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="text-center py-20"
-            >
-              <motion.div
-                animate={{ y: [0, -10, 0] }}
-                transition={{ duration: 2, repeat: Infinity }}
-                className="text-6xl mb-4"
-              >
-                🚗
-              </motion.div>
-              <h3 className="text-2xl font-semibold text-gray-700 mb-2">No cars found</h3>
-              <p className="text-gray-500 mb-4">Try adjusting your search criteria or filters</p>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={clearFilters}
-                className='px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary-dull transition-all'
-              >
-                Clear Filters
-              </motion.button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* ... */}
     </motion.div>
   )
 }
