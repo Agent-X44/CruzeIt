@@ -5,7 +5,8 @@ import CarCards from '../components/CarCards'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
 import { toast } from 'react-hot-toast'
-import { motion, AnimatePresence } from 'motion/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Loader from '../components/Loader'
 
 const Cars = () => {
   // Get search params from URL
@@ -659,8 +660,38 @@ const Cars = () => {
         </div>
       </motion.div>
 
-      {/* Rest of the component remains the same */}
-      {/* ... */}
+      {/* Results Section */}
+      <div className="max-w-140 mx-auto py-8 px-4">
+        {isLoading ? (
+          <Loader />
+        ) : (
+          <>
+            {filteredCars.length === 0 ? (
+              <div className="text-center py-20">
+                <h3 className="text-lg font-semibold">No cars found</h3>
+                <p className="text-sm text-gray-500 mt-2">Try adjusting your filters.</p>
+              </div>
+            ) : (
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+              >
+                {filteredCars.map((car) => (
+                  <motion.div key={car._id} variants={cardVariants}>
+                    <CarCards car={{
+                      ...car,
+                      image: car.image || assets.car_icon,
+                      price_per_day: car.price_per_day ?? car.price ?? 0
+                    }} />
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </>
+        )}
+      </div>
     </motion.div>
   )
 }
