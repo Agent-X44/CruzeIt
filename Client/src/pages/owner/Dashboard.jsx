@@ -79,7 +79,7 @@ const Dashboard = () => {
       transition={{ duration: 0.6 }}
     >
       <Title
-        title="Admin Dashboard"
+        title="Dashboard"
         subTitle="Monitor overall platform performance including total cars, booking, revenue and recent activities"
       />
 
