@@ -1,9 +1,9 @@
 
-## 🎯 Title
+
 **CruzeIt**  
 *Online Car Rental Booking System*
 
-## 🧩 Purpose
+## Purpose
 
 CruzeIt aims to simplify and digitize the car rental process. It allows:
 
@@ -11,7 +11,7 @@ CruzeIt aims to simplify and digitize the car rental process. It allows:
 - Admins to manage vehicle listings, monitor bookings, and streamline operations.
 
 
-## 🚀 Key Features
+## Key Features
 
 - **User Registration and Login**  
   Role-based access for customers and admins.
@@ -29,13 +29,13 @@ CruzeIt aims to simplify and digitize the car rental process. It allows:
   Automatically calculates total cost based on the selected rental period.
 
 
-## 🎯 Target Users
+## Target Users
 
 - Individuals or businesses needing a rental car.
 - Car rental operators managing fleets and bookings.
 
 
-## 👥 Group Members & Roles
+## Group Members & Roles
 
 | Name                  | Role               |
 |-----------------------|--------------------|
